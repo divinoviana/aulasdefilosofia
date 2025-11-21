@@ -47,7 +47,7 @@ export const SubmissionBar: React.FC<Props> = ({
       alert("Por favor, preencha sua turma.");
       return false;
     }
-    const hasAnswers = Object.values(answers).some(a => a.trim().length > 0);
+    const hasAnswers = Object.values(answers).some((a) => (a as string).trim().length > 0);
     if (!hasAnswers) {
       alert("Responda pelo menos uma questão.");
       return false;
@@ -64,8 +64,9 @@ export const SubmissionBar: React.FC<Props> = ({
     
     let count = 1;
     Object.entries(answers).forEach(([key, value]) => {
-      if (value && value.trim()) {
-        msg += `*Questão ${count}:*\n${value}\n\n`;
+      const val = value as string;
+      if (val && val.trim()) {
+        msg += `*Questão ${count}:*\n${val}\n\n`;
         count++;
       }
     });
