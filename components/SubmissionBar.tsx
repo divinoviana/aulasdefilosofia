@@ -10,6 +10,7 @@ export interface SubmissionItem {
 interface Props {
   studentName: string;
   schoolClass: string;
+  submissionDate: string;
   lessonTitle: string;
   submissionData: SubmissionItem[];
   teacherEmail?: string;
@@ -18,6 +19,7 @@ interface Props {
 export const SubmissionBar: React.FC<Props> = ({ 
   studentName, 
   schoolClass, 
+  submissionDate,
   lessonTitle, 
   submissionData,
   teacherEmail = "divino.viana@professor.to.gov.br"
@@ -66,6 +68,10 @@ export const SubmissionBar: React.FC<Props> = ({
       alert("Por favor, preencha sua turma.");
       return false;
     }
+    if (!submissionDate.trim()) {
+      alert("Por favor, preencha a data.");
+      return false;
+    }
     if (submissionData.length === 0) {
       alert("Responda pelo menos uma questão.");
       return false;
@@ -73,11 +79,18 @@ export const SubmissionBar: React.FC<Props> = ({
     return true;
   };
 
+  const getFormattedDate = () => {
+    if (!submissionDate) return '';
+    const [year, month, day] = submissionDate.split('-');
+    return `${day}/${month}/${year}`;
+  };
+
   const formatMessage = () => {
     let msg = `*ATIVIDADE DE FILOSOFIA*\n`;
     msg += `📚 *Aula:* ${lessonTitle}\n`;
     msg += `👤 *Aluno:* ${studentName}\n`;
     msg += `🏫 *Turma:* ${schoolClass}\n`;
+    msg += `📅 *Data:* ${getFormattedDate()}\n`;
     msg += `--------------------------------\n\n`;
     
     submissionData.forEach((item, index) => {
@@ -119,7 +132,7 @@ export const SubmissionBar: React.FC<Props> = ({
 
   const handleMailto = () => {
     if (!validate()) return;
-    const subject = `Atividade: ${studentName} - ${schoolClass}`;
+    const subject = `Atividade: ${studentName} - ${schoolClass} - ${getFormattedDate()}`;
     const body = formatMessage();
     window.location.href = `mailto:${teacherEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };

@@ -25,6 +25,8 @@ export const LessonView: React.FC = () => {
 
   const [studentName, setStudentName] = useState('');
   const [schoolClass, setSchoolClass] = useState('');
+  // Define a data de hoje como padrão no formato YYYY-MM-DD para o input date
+  const [submissionDate, setSubmissionDate] = useState(new Date().toISOString().split('T')[0]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
   if (!foundLesson) return <div className="p-8 text-center">Aula não encontrada.</div>;
@@ -107,25 +109,34 @@ export const LessonView: React.FC = () => {
 
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-10">
           <h3 className="text-lg font-bold text-yellow-800 mb-4">Identificação do Aluno</h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Seu Nome Completo</label>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="md:col-span-1">
+              <label className="block text-sm font-bold text-slate-700 mb-1">Seu Nome</label>
               <input 
                 type="text" 
                 value={studentName}
                 onChange={(e) => setStudentName(e.target.value)}
                 className="w-full p-2 border rounded-md"
-                placeholder="Ex: João da Silva"
+                placeholder="Nome completo"
               />
             </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Sua Turma/Escola</label>
+            <div className="md:col-span-1">
+              <label className="block text-sm font-bold text-slate-700 mb-1">Turma/Escola</label>
               <input 
                 type="text" 
                 value={schoolClass}
                 onChange={(e) => setSchoolClass(e.target.value)}
                 className="w-full p-2 border rounded-md"
-                placeholder="Ex: 3º Ano A - Escola Estadual..."
+                placeholder="Ex: 3º A"
+              />
+            </div>
+            <div className="md:col-span-1">
+              <label className="block text-sm font-bold text-slate-700 mb-1">Data do Envio</label>
+              <input 
+                type="date" 
+                value={submissionDate}
+                onChange={(e) => setSubmissionDate(e.target.value)}
+                className="w-full p-2 border rounded-md text-slate-700"
               />
             </div>
           </div>
@@ -178,6 +189,7 @@ export const LessonView: React.FC = () => {
       <SubmissionBar 
         studentName={studentName}
         schoolClass={schoolClass}
+        submissionDate={submissionDate}
         lessonTitle={foundLesson.title}
         submissionData={getSubmissionData()}
       />
