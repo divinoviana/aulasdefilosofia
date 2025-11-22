@@ -2,13 +2,12 @@ import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { curriculumData } from '../data';
 import { ActivityInput } from '../components/ActivityInput';
-import { SubmissionBar } from '../components/SubmissionBar';
+import { SubmissionBar, SubmissionItem } from '../components/SubmissionBar';
 import { ArrowLeft, CheckCircle, PenTool, BrainCircuit, BookOpen } from 'lucide-react';
 
 export const LessonView: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   
-  // Helper to find lesson across structure
   let foundLesson = null;
   let gradeTitle = "";
   
@@ -34,6 +33,43 @@ export const LessonView: React.FC = () => {
     setAnswers(prev => ({ ...prev, [key]: value }));
   };
 
+  // Função auxiliar para preparar os dados para a barra de submissão
+  const getSubmissionData = (): SubmissionItem[] => {
+    if (!foundLesson) return [];
+    
+    const data: SubmissionItem[] = [];
+
+    // Processar atividades normais
+    foundLesson.activities.forEach(activity => {
+      activity.questions?.forEach((q, idx) => {
+        const key = `${activity.id}-${idx}`;
+        const answer = answers[key];
+        if (answer && answer.trim()) {
+          data.push({
+            activityTitle: activity.title,
+            question: q,
+            answer: answer
+          });
+        }
+      });
+    });
+
+    // Processar questões de reflexão
+    foundLesson.reflectionQuestions.forEach((q, idx) => {
+      const key = `reflexao-${idx}`;
+      const answer = answers[key];
+      if (answer && answer.trim()) {
+        data.push({
+          activityTitle: "Reflexão Final",
+          question: q,
+          answer: answer
+        });
+      }
+    });
+
+    return data;
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl pb-32">
       <Link to={`/grade/${lessonId?.split('-')[0]}`} className="inline-flex items-center text-slate-500 hover:text-tocantins-blue mb-6 font-medium">
@@ -43,7 +79,6 @@ export const LessonView: React.FC = () => {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 mb-8">
         <h1 className="text-3xl font-serif font-bold text-slate-900 mb-6">{foundLesson.title}</h1>
         
-        {/* Objectives */}
         <div className="bg-blue-50 rounded-xl p-5 mb-8 border-l-4 border-blue-500">
           <h3 className="flex items-center text-blue-800 font-bold mb-3">
             <CheckCircle className="w-5 h-5 mr-2" />
@@ -56,7 +91,6 @@ export const LessonView: React.FC = () => {
           </ul>
         </div>
 
-        {/* Theory Content */}
         <div className="prose prose-slate max-w-none mb-10">
           <h3 className="flex items-center text-xl font-bold text-slate-800 mb-4 border-b pb-2">
             <BookOpen className="w-6 h-6 mr-2 text-indigo-600" />
@@ -67,12 +101,10 @@ export const LessonView: React.FC = () => {
           </div>
         </div>
 
-        {/* Methodology (Optional display for students, keeps transparency) */}
         <div className="bg-slate-50 p-4 rounded-lg mb-8 text-sm text-slate-600 italic border border-slate-200">
           <strong>Metodologia da aula:</strong> {foundLesson.methodology}
         </div>
 
-        {/* Student Identification */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-10">
           <h3 className="text-lg font-bold text-yellow-800 mb-4">Identificação do Aluno</h3>
           <div className="grid gap-4 md:grid-cols-2">
@@ -99,7 +131,6 @@ export const LessonView: React.FC = () => {
           </div>
         </div>
 
-        {/* Practical Activities */}
         <div className="mb-10">
           <h3 className="flex items-center text-2xl font-bold text-slate-800 mb-6">
             <PenTool className="w-6 h-6 mr-2 text-green-600" />
@@ -124,7 +155,6 @@ export const LessonView: React.FC = () => {
           </div>
         </div>
 
-        {/* Reflection Questions */}
         <div>
           <h3 className="flex items-center text-2xl font-bold text-slate-800 mb-6">
             <BrainCircuit className="w-6 h-6 mr-2 text-purple-600" />
@@ -149,7 +179,7 @@ export const LessonView: React.FC = () => {
         studentName={studentName}
         schoolClass={schoolClass}
         lessonTitle={foundLesson.title}
-        answers={answers}
+        submissionData={getSubmissionData()}
       />
     </div>
   );

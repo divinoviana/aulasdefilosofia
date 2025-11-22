@@ -1,38 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Copy, CheckCircle, Phone, Settings, Mail } from 'lucide-react';
+import { Send, Copy, CheckCircle, Settings, Mail } from 'lucide-react';
+
+export interface SubmissionItem {
+  activityTitle: string;
+  question: string;
+  answer: string;
+}
 
 interface Props {
   studentName: string;
   schoolClass: string;
   lessonTitle: string;
-  answers: Record<string, string>;
-  teacherEmail?: string; // Kept for fallback
+  submissionData: SubmissionItem[];
+  teacherEmail?: string;
 }
 
 export const SubmissionBar: React.FC<Props> = ({ 
   studentName, 
   schoolClass, 
   lessonTitle, 
-  answers,
+  submissionData,
   teacherEmail = "divino.viana@professor.to.gov.br"
 }) => {
   const [teacherPhone, setTeacherPhone] = useState('');
   const [showPhoneInput, setShowPhoneInput] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
 
-  // Load saved phone number on mount
+  // Carregar telefone salvo ao iniciar
   useEffect(() => {
     const savedPhone = localStorage.getItem('teacherPhone');
     if (savedPhone) {
       setTeacherPhone(savedPhone);
     } else {
-      // Default placeholder or empty
       setShowPhoneInput(true);
     }
   }, []);
 
   const savePhone = (phone: string) => {
-    // Remove non-digits for storage
     const cleanPhone = phone.replace(/\D/g, '');
     setTeacherPhone(cleanPhone);
     localStorage.setItem('teacherPhone', cleanPhone);
@@ -47,8 +51,7 @@ export const SubmissionBar: React.FC<Props> = ({
       alert("Por favor, preencha sua turma.");
       return false;
     }
-    const hasAnswers = Object.values(answers).some((a) => (a as string).trim().length > 0);
-    if (!hasAnswers) {
+    if (submissionData.length === 0) {
       alert("Responda pelo menos uma questão.");
       return false;
     }
@@ -56,20 +59,18 @@ export const SubmissionBar: React.FC<Props> = ({
   };
 
   const formatMessage = () => {
-    let msg = `*ATIVIDADE DE FILOSOFIA*\n\n`;
-    msg += `*Aluno:* ${studentName}\n`;
-    msg += `*Turma:* ${schoolClass}\n`;
-    msg += `*Aula:* ${lessonTitle}\n`;
+    let msg = `*ATIVIDADE DE FILOSOFIA*\n`;
+    msg += `📚 *Aula:* ${lessonTitle}\n`;
+    msg += `👤 *Aluno:* ${studentName}\n`;
+    msg += `🏫 *Turma:* ${schoolClass}\n`;
     msg += `--------------------------------\n\n`;
     
-    let count = 1;
-    Object.entries(answers).forEach(([key, value]) => {
-      const val = value as string;
-      if (val && val.trim()) {
-        msg += `*Questão ${count}:*\n${val}\n\n`;
-        count++;
-      }
+    submissionData.forEach((item, index) => {
+      msg += `📝 *Questão ${(index + 1)}* (${item.activityTitle})\n`;
+      msg += `❓ _${item.question}_\n`;
+      msg += `✅ *R:* ${item.answer}\n\n`;
     });
+    
     return msg;
   };
 
@@ -77,14 +78,14 @@ export const SubmissionBar: React.FC<Props> = ({
     if (!validate()) return;
 
     if (!teacherPhone || teacherPhone.length < 10) {
-      alert("Por favor, configure o número do professor corretamente.");
+      alert("Por favor, configure o número do professor corretamente (DDD + Número).");
       setShowPhoneInput(true);
       return;
     }
 
     const text = formatMessage();
     const encodedText = encodeURIComponent(text);
-    // Determine current device type to choose API
+    
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const baseUrl = isMobile ? 'https://api.whatsapp.com/send' : 'https://web.whatsapp.com/send';
     
@@ -111,7 +112,6 @@ export const SubmissionBar: React.FC<Props> = ({
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-50">
       <div className="container mx-auto max-w-3xl">
         
-        {/* Phone Input Config (Collapsible) */}
         {showPhoneInput && (
           <div className="mb-4 bg-yellow-50 p-4 rounded-lg border border-yellow-200 animate-in fade-in slide-in-from-bottom-2">
             <label className="block text-sm font-bold text-yellow-800 mb-2">
@@ -132,44 +132,39 @@ export const SubmissionBar: React.FC<Props> = ({
                 Salvar
               </button>
             </div>
-            <p className="text-xs text-yellow-700 mt-2">Este número ficará salvo no seu dispositivo para as próximas atividades.</p>
+            <p className="text-xs text-yellow-700 mt-2">Este número ficará salvo no seu dispositivo.</p>
           </div>
         )}
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-3">
           
-          {/* Controls */}
           <div className="flex w-full space-x-2">
             
-            {/* Copy Button */}
             <button
               onClick={handleCopy}
               className="flex-1 md:flex-none bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
               title="Copiar Respostas"
             >
               {copyFeedback ? <CheckCircle className="w-5 h-5 text-green-600" /> : <Copy className="w-5 h-5" />}
-              <span>{copyFeedback ? "Copiado" : "Copiar"}</span>
+              <span className="hidden md:inline">{copyFeedback ? "Copiado" : "Copiar"}</span>
             </button>
 
-             {/* Email Fallback (Icon only on mobile, text on desktop) */}
              <button
               onClick={handleMailto}
               className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
-              title="Enviar por E-mail (App)"
+              title="Enviar por E-mail"
             >
               <Mail className="w-5 h-5" />
             </button>
 
-            {/* WhatsApp Button (Primary) */}
             <button
               onClick={handleWhatsApp}
-              className="flex-[2] bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2"
+              className="flex-[2] bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-transform hover:scale-[1.02] flex items-center justify-center gap-2"
             >
               <Send className="w-5 h-5" />
-              <span>Enviar no WhatsApp</span>
+              <span>Enviar WhatsApp</span>
             </button>
 
-            {/* Settings Toggle */}
             <button 
               onClick={() => setShowPhoneInput(!showPhoneInput)}
               className="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition"

@@ -18,8 +18,8 @@ function App() {
           </Routes>
         </main>
         <footer className="bg-slate-900 text-slate-400 py-6 text-center text-sm">
-          <p>© 2024 Filosofia Conectada - Tocantins</p>
-          <p className="mt-1">Desenvolvido para o ensino público de qualidade.</p>
+          <p>© 2024 Filosofia no Ensino Médio - Tocantins</p>
+          <p className="mt-1">Desenvolvido por: Prof. Me. Divino Ribeiro Viana</p>
         </footer>
       </div>
     </Router>

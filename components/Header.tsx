@@ -9,8 +9,8 @@ export const Header: React.FC = () => {
         <Link to="/" className="flex items-center space-x-2 hover:opacity-90 transition">
           <BookOpen className="w-8 h-8 text-tocantins-yellow" />
           <div>
-            <h1 className="text-xl font-bold leading-tight">Filosofia Conectada</h1>
-            <p className="text-xs text-slate-400">Ensino Médio - Tocantins</p>
+            <h1 className="text-xl font-bold leading-tight">Filosofia no Ensino Médio</h1>
+            <p className="text-xs text-slate-400">Tocantins</p>
           </div>
         </Link>
       </div>
