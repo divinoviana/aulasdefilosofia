@@ -7,11 +7,13 @@ export const Home: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="text-center mb-12">
-        <h2 className="text-3xl font-serif font-bold text-slate-800 mb-4">Bem-vindo ao Portal de Filosofia</h2>
-        <p className="text-slate-600 text-lg">
-          Selecione sua série para acessar os conteúdos, atividades e reflexões.
-          A filosofia é a ferramenta para entender a vida.
-        </p>
+        <h2 className="text-3xl font-serif font-bold text-slate-800 mb-4">Bem-vindo ao Portal de Aulas de Filosofia</h2>
+        <div className="text-slate-600 text-lg max-w-3xl mx-auto space-y-2">
+          <p className="font-bold text-red-700 text-xl">Atenção, estudante!</p>
+          <p>
+            Selecione sua série para acessar os conteúdos, atividades e reflexões. Não se esqueça de colocar seu nome completo e a série. O envio da atividade só pode ocorrer no dia atual — nem antes, nem depois. As atividades são enviadas diretamente para o WhatsApp do professor, com o seu nome, a data e o horário do envio.
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
