@@ -8,6 +8,12 @@ interface Props {
 }
 
 export const ActivityInput: React.FC<Props> = ({ questionId, questionText, value, onChange }) => {
+  
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    alert("Para incentivar sua aprendizagem, a função de colar texto está desativada. Por favor, digite sua resposta.");
+  };
+
   return (
     <div className="mb-4">
       <label className="block text-slate-700 font-semibold mb-2 text-sm">
@@ -19,6 +25,8 @@ export const ActivityInput: React.FC<Props> = ({ questionId, questionText, value
         placeholder="Digite sua resposta aqui..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onPaste={handlePaste}
+        autoComplete="off"
       />
     </div>
   );

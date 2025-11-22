@@ -24,23 +24,19 @@ export const SubmissionBar: React.FC<Props> = ({
   submissionData,
   teacherEmail = "divino.viana@professor.to.gov.br"
 }) => {
-  // Número padrão definido pelo professor
   const DEFAULT_PHONE = "63981127876";
 
   const [teacherPhone, setTeacherPhone] = useState('');
   const [showPhoneInput, setShowPhoneInput] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
 
-  // Carregar telefone salvo ao iniciar ou usar o padrão
   useEffect(() => {
     try {
       const savedPhone = localStorage.getItem('teacherPhone');
       if (savedPhone) {
         setTeacherPhone(savedPhone);
       } else {
-        // Se não tiver salvo, usa o padrão e salva silenciosamente ou apenas define no state
         setTeacherPhone(DEFAULT_PHONE);
-        // Não forçamos a abertura do input pois já temos o número do professor
         setShowPhoneInput(false);
       }
     } catch (error) {
@@ -72,6 +68,19 @@ export const SubmissionBar: React.FC<Props> = ({
       alert("Por favor, preencha a data.");
       return false;
     }
+
+    // Validação estrita da data (somente hoje)
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+
+    if (submissionDate !== todayStr) {
+      alert(`A data de envio deve ser exatamente a data de hoje (${day}/${month}/${year}).\nO sistema não aceita envios retroativos ou antecipados.`);
+      return false;
+    }
+
     if (submissionData.length === 0) {
       alert("Responda pelo menos uma questão.");
       return false;
@@ -117,7 +126,6 @@ export const SubmissionBar: React.FC<Props> = ({
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const baseUrl = isMobile ? 'https://api.whatsapp.com/send' : 'https://web.whatsapp.com/send';
     
-    // Adiciona o 55 (Brasil) antes do número
     window.open(`${baseUrl}?phone=55${teacherPhone}&text=${encodedText}`, '_blank');
   };
 

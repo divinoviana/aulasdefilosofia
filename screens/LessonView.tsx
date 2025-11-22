@@ -8,6 +8,15 @@ import { ArrowLeft, CheckCircle, PenTool, BrainCircuit, BookOpen } from 'lucide-
 export const LessonView: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   
+  // Função auxiliar para obter a data de hoje no formato YYYY-MM-DD (fuso local)
+  const getTodayString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   let foundLesson = null;
   let gradeTitle = "";
   
@@ -25,8 +34,8 @@ export const LessonView: React.FC = () => {
 
   const [studentName, setStudentName] = useState('');
   const [schoolClass, setSchoolClass] = useState('');
-  // Define a data de hoje como padrão no formato YYYY-MM-DD para o input date
-  const [submissionDate, setSubmissionDate] = useState(new Date().toISOString().split('T')[0]);
+  // Inicia com a data de hoje
+  const [submissionDate, setSubmissionDate] = useState(getTodayString());
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
   if (!foundLesson) return <div className="p-8 text-center">Aula não encontrada.</div>;
@@ -35,7 +44,6 @@ export const LessonView: React.FC = () => {
     setAnswers(prev => ({ ...prev, [key]: value }));
   };
 
-  // Função auxiliar para preparar os dados para a barra de submissão
   const getSubmissionData = (): SubmissionItem[] => {
     if (!foundLesson) return [];
     
@@ -107,8 +115,11 @@ export const LessonView: React.FC = () => {
           <strong>Metodologia da aula:</strong> {foundLesson.methodology}
         </div>
 
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-10">
-          <h3 className="text-lg font-bold text-yellow-800 mb-4">Identificação do Aluno</h3>
+        {/* Seção de Identificação - Destacada */}
+        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-10 shadow-sm">
+          <h3 className="text-lg font-bold text-yellow-800 mb-4 flex items-center gap-2">
+             Identificação do Aluno
+          </h3>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="md:col-span-1">
               <label className="block text-sm font-bold text-slate-700 mb-1">Seu Nome</label>
@@ -116,7 +127,7 @@ export const LessonView: React.FC = () => {
                 type="text" 
                 value={studentName}
                 onChange={(e) => setStudentName(e.target.value)}
-                className="w-full p-2 border rounded-md"
+                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-yellow-400 outline-none"
                 placeholder="Nome completo"
               />
             </div>
@@ -126,7 +137,7 @@ export const LessonView: React.FC = () => {
                 type="text" 
                 value={schoolClass}
                 onChange={(e) => setSchoolClass(e.target.value)}
-                className="w-full p-2 border rounded-md"
+                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-yellow-400 outline-none"
                 placeholder="Ex: 3º A"
               />
             </div>
@@ -135,9 +146,13 @@ export const LessonView: React.FC = () => {
               <input 
                 type="date" 
                 value={submissionDate}
+                min={getTodayString()} // Bloqueia passado
+                max={getTodayString()} // Bloqueia futuro
                 onChange={(e) => setSubmissionDate(e.target.value)}
-                className="w-full p-2 border rounded-md text-slate-700"
+                className="w-full p-2 border rounded-md text-slate-700 focus:ring-2 focus:ring-yellow-400 outline-none cursor-pointer bg-white"
+                onKeyDown={(e) => e.preventDefault()} // Impede digitação manual para forçar uso do calendário restrito
               />
+              <p className="text-xs text-slate-500 mt-1 font-semibold text-yellow-700">Apenas a data de hoje é permitida.</p>
             </div>
           </div>
         </div>
