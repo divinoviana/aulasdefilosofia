@@ -158,10 +158,15 @@ export const LessonView: React.FC = () => {
         </div>
 
         <div className="mb-10">
-          <h3 className="flex items-center text-2xl font-bold text-slate-800 mb-6">
-            <PenTool className="w-6 h-6 mr-2 text-green-600" />
-            Atividades Práticas
-          </h3>
+          <div className="flex flex-col mb-6">
+            <h3 className="flex items-center text-2xl font-bold text-slate-800">
+              <PenTool className="w-6 h-6 mr-2 text-green-600" />
+              Atividades Práticas
+            </h3>
+            <p className="text-sm text-red-600 mt-2 font-medium">
+              Você não consegue copiar e colar um texto externo nas respostas; portanto, responda com suas próprias palavras e digite você mesmo.
+            </p>
+          </div>
           <div className="space-y-6">
             {foundLesson.activities.map((activity) => (
               <div key={activity.id} className="bg-slate-50 p-5 rounded-xl border border-slate-200">
@@ -182,10 +187,15 @@ export const LessonView: React.FC = () => {
         </div>
 
         <div>
-          <h3 className="flex items-center text-2xl font-bold text-slate-800 mb-6">
-            <BrainCircuit className="w-6 h-6 mr-2 text-purple-600" />
-            Questões para Reflexão
-          </h3>
+          <div className="flex flex-col mb-6">
+            <h3 className="flex items-center text-2xl font-bold text-slate-800">
+              <BrainCircuit className="w-6 h-6 mr-2 text-purple-600" />
+              Questões para Reflexão
+            </h3>
+            <p className="text-sm text-red-600 mt-2 font-medium">
+              Você não consegue copiar e colar um texto externo nas respostas; portanto, responda com suas próprias palavras e digite você mesmo.
+            </p>
+          </div>
           <div className="bg-purple-50 p-5 rounded-xl border border-purple-100">
             {foundLesson.reflectionQuestions.map((q, idx) => (
               <ActivityInput
