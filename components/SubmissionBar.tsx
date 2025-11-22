@@ -22,24 +22,39 @@ export const SubmissionBar: React.FC<Props> = ({
   submissionData,
   teacherEmail = "divino.viana@professor.to.gov.br"
 }) => {
+  // Número padrão definido pelo professor
+  const DEFAULT_PHONE = "63981127876";
+
   const [teacherPhone, setTeacherPhone] = useState('');
   const [showPhoneInput, setShowPhoneInput] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
 
-  // Carregar telefone salvo ao iniciar
+  // Carregar telefone salvo ao iniciar ou usar o padrão
   useEffect(() => {
-    const savedPhone = localStorage.getItem('teacherPhone');
-    if (savedPhone) {
-      setTeacherPhone(savedPhone);
-    } else {
-      setShowPhoneInput(true);
+    try {
+      const savedPhone = localStorage.getItem('teacherPhone');
+      if (savedPhone) {
+        setTeacherPhone(savedPhone);
+      } else {
+        // Se não tiver salvo, usa o padrão e salva silenciosamente ou apenas define no state
+        setTeacherPhone(DEFAULT_PHONE);
+        // Não forçamos a abertura do input pois já temos o número do professor
+        setShowPhoneInput(false);
+      }
+    } catch (error) {
+      console.warn("Não foi possível acessar o localStorage:", error);
+      setTeacherPhone(DEFAULT_PHONE);
     }
   }, []);
 
   const savePhone = (phone: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
     setTeacherPhone(cleanPhone);
-    localStorage.setItem('teacherPhone', cleanPhone);
+    try {
+      localStorage.setItem('teacherPhone', cleanPhone);
+    } catch (error) {
+      console.warn("Não foi possível salvar no localStorage:", error);
+    }
   };
 
   const validate = () => {
@@ -89,6 +104,7 @@ export const SubmissionBar: React.FC<Props> = ({
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const baseUrl = isMobile ? 'https://api.whatsapp.com/send' : 'https://web.whatsapp.com/send';
     
+    // Adiciona o 55 (Brasil) antes do número
     window.open(`${baseUrl}?phone=55${teacherPhone}&text=${encodedText}`, '_blank');
   };
 
@@ -115,9 +131,9 @@ export const SubmissionBar: React.FC<Props> = ({
         {showPhoneInput && (
           <div className="mb-4 bg-yellow-50 p-4 rounded-lg border border-yellow-200 animate-in fade-in slide-in-from-bottom-2">
             <label className="block text-sm font-bold text-yellow-800 mb-2">
-              Configure o WhatsApp do Professor (apenas uma vez):
+              Configure o WhatsApp do Professor:
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-col sm:flex-row">
               <input 
                 type="tel" 
                 placeholder="DDD + Número (ex: 63999999999)"
@@ -125,14 +141,23 @@ export const SubmissionBar: React.FC<Props> = ({
                 value={teacherPhone}
                 onChange={(e) => savePhone(e.target.value)}
               />
-              <button 
-                onClick={() => setShowPhoneInput(false)}
-                className="bg-yellow-600 text-white px-4 py-2 rounded-md font-bold hover:bg-yellow-700"
-              >
-                Salvar
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => savePhone(DEFAULT_PHONE)}
+                  className="bg-slate-200 text-slate-700 px-4 py-2 rounded-md font-semibold hover:bg-slate-300 text-sm"
+                  title="Restaurar número padrão"
+                >
+                  Padrão
+                </button>
+                <button 
+                  onClick={() => setShowPhoneInput(false)}
+                  className="bg-yellow-600 text-white px-4 py-2 rounded-md font-bold hover:bg-yellow-700 flex-1 sm:flex-none"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
-            <p className="text-xs text-yellow-700 mt-2">Este número ficará salvo no seu dispositivo.</p>
+            <p className="text-xs text-yellow-700 mt-2">Número atual configurado: {teacherPhone || "Nenhum"}</p>
           </div>
         )}
 
