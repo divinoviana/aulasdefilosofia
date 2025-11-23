@@ -3,7 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import { curriculumData } from '../data';
 import { ActivityInput } from '../components/ActivityInput';
 import { SubmissionBar, SubmissionItem } from '../components/SubmissionBar';
-import { ArrowLeft, CheckCircle, PenTool, BrainCircuit, BookOpen, Lightbulb, User } from 'lucide-react';
+import { ArrowLeft, CheckCircle, PenTool, BrainCircuit, BookOpen, Lightbulb, User, Bot, Sparkles } from 'lucide-react';
+import { evaluateActivities, AIResponse } from '../services/aiService';
+import { AIFeedbackModal } from '../components/AIFeedbackModal';
 
 export const LessonView: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
@@ -38,11 +40,15 @@ export const LessonView: React.FC = () => {
   const [submissionDate, setSubmissionDate] = useState(getTodayString());
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
+  // Estados para IA
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiData, setAiData] = useState<AIResponse | null>(null);
+
   // Função para determinar a imagem da aula baseada no título/conteúdo
   const lessonImage = useMemo(() => {
     if (!foundLesson) return "";
     const title = foundLesson.title.toLowerCase();
-    const theory = foundLesson.theory.toLowerCase();
 
     // Mapeamento de palavras-chave para imagens do Unsplash
     if (title.includes("mito") || title.includes("grega")) return "https://images.unsplash.com/photo-1535905557558-afc4877a26fc?auto=format&fit=crop&w=1200&q=80";
@@ -97,8 +103,55 @@ export const LessonView: React.FC = () => {
     return data;
   };
 
+  const handleAICorrection = async () => {
+    const submissionData = getSubmissionData();
+    if (submissionData.length === 0) {
+      alert("Por favor, responda pelo menos uma questão antes de pedir a correção.");
+      return;
+    }
+
+    if (!process.env.API_KEY) {
+        alert("Chave de API não configurada. O professor deve configurar a variável de ambiente.");
+        return;
+    }
+
+    setIsAIModalOpen(true);
+    setAiLoading(true);
+    setAiData(null);
+
+    try {
+      // Prepara os dados para a IA
+      const questionsToEvaluate = submissionData.map(item => ({
+        question: item.question,
+        answer: item.answer
+      }));
+
+      const result = await evaluateActivities(
+        foundLesson!.title,
+        foundLesson!.theory,
+        questionsToEvaluate
+      );
+
+      setAiData(result);
+    } catch (error) {
+      console.error(error);
+      alert("Ocorreu um erro ao conectar com a IA. Tente novamente mais tarde.");
+      setIsAIModalOpen(false);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 pb-32">
+      {/* Modal de Feedback da IA */}
+      <AIFeedbackModal 
+        isOpen={isAIModalOpen}
+        isLoading={aiLoading}
+        data={aiData}
+        onClose={() => setIsAIModalOpen(false)}
+      />
+
       {/* Hero Image da Aula */}
       <div className="relative h-60 lg:h-80 w-full overflow-hidden bg-slate-800 group">
         <div className="absolute inset-0 z-0">
@@ -243,7 +296,7 @@ export const LessonView: React.FC = () => {
             </div>
           </div>
 
-          <div>
+          <div className="mb-8">
             <div className="flex flex-col mb-8">
               <h3 className="flex items-center text-2xl font-bold text-slate-800">
                 <BrainCircuit className="w-7 h-7 mr-3 text-purple-600" />
@@ -263,6 +316,26 @@ export const LessonView: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Botão de Correção IA */}
+          <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+             <div className="flex items-center gap-4">
+               <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+                 <Bot className="w-8 h-8 text-white" />
+               </div>
+               <div>
+                 <h4 className="font-bold text-lg">Correção com Inteligência Artificial</h4>
+                 <p className="text-indigo-100 text-sm opacity-90">Receba feedback imediato sobre suas respostas antes de enviar.</p>
+               </div>
+             </div>
+             <button
+               onClick={handleAICorrection}
+               className="bg-white text-indigo-700 hover:bg-indigo-50 font-bold py-3 px-6 rounded-xl shadow-md transition-all flex items-center gap-2 whitespace-nowrap"
+             >
+               <Sparkles className="w-4 h-4" />
+               Corrigir Agora
+             </button>
           </div>
 
         </div>
