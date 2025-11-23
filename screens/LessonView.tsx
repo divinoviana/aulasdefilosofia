@@ -347,6 +347,8 @@ export const LessonView: React.FC = () => {
         submissionDate={submissionDate}
         lessonTitle={foundLesson.title}
         submissionData={getSubmissionData()}
+        aiData={aiData}
+        theory={foundLesson.theory}
       />
     </div>
   );

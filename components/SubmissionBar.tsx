@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Copy, CheckCircle, Settings, Mail } from 'lucide-react';
+import { Send, Copy, CheckCircle, Settings, Mail, Sparkles, Loader2 } from 'lucide-react';
+import { AIResponse, evaluateActivities } from '../services/aiService';
 
 export interface SubmissionItem {
   activityTitle: string;
@@ -14,6 +15,8 @@ interface Props {
   lessonTitle: string;
   submissionData: SubmissionItem[];
   teacherEmail?: string;
+  aiData?: AIResponse | null;
+  theory: string;
 }
 
 export const SubmissionBar: React.FC<Props> = ({ 
@@ -22,13 +25,16 @@ export const SubmissionBar: React.FC<Props> = ({
   submissionDate,
   lessonTitle, 
   submissionData,
-  teacherEmail = "divino.viana@professor.to.gov.br"
+  teacherEmail = "divino.viana@professor.to.gov.br",
+  aiData,
+  theory
 }) => {
   const DEFAULT_PHONE = "63981127876";
 
   const [teacherPhone, setTeacherPhone] = useState('');
   const [showPhoneInput, setShowPhoneInput] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     try {
@@ -94,24 +100,43 @@ export const SubmissionBar: React.FC<Props> = ({
     return `${day}/${month}/${year}`;
   };
 
-  const formatMessage = () => {
+  const formatMessage = (dataToUse: AIResponse | null | undefined) => {
     let msg = `*ATIVIDADE DE FILOSOFIA*\n`;
     msg += `📚 *Aula:* ${lessonTitle}\n`;
     msg += `👤 *Aluno:* ${studentName}\n`;
     msg += `🏫 *Turma:* ${schoolClass}\n`;
     msg += `📅 *Data:* ${getFormattedDate()}\n`;
+
+    if (dataToUse && dataToUse.corrections.length > 0) {
+       const totalScore = dataToUse.corrections.reduce((acc, curr) => acc + curr.score, 0);
+       const avgScore = (totalScore / dataToUse.corrections.length).toFixed(1);
+       msg += `👨‍🏫 *Nota do Professor:* ${avgScore}/10\n`;
+    }
+
     msg += `--------------------------------\n\n`;
     
     submissionData.forEach((item, index) => {
-      msg += `📝 *Questão ${(index + 1)}* (${item.activityTitle})\n`;
-      msg += `❓ _${item.question}_\n`;
-      msg += `✅ *R:* ${item.answer}\n\n`;
+      msg += `📝 *Questão ${(index + 1)}* - ${item.activityTitle}\n`;
+      msg += `_${item.question}_\n`;
+      msg += `*R:* ${item.answer}\n`;
+
+      if (dataToUse && dataToUse.corrections && dataToUse.corrections[index]) {
+          const c = dataToUse.corrections[index];
+          // Formatação especial para parecer feedback direto do professor
+          msg += `✍️ *Professor:* ${c.feedback} _(Nota: ${c.score})_\n`;
+      }
+      msg += `\n`;
     });
+
+    if (dataToUse) {
+        msg += `--------------------------------\n`;
+        msg += `📜 *Parecer Geral do Professor:*\n_${dataToUse.generalComment}_\n`;
+    }
     
     return msg;
   };
 
-  const handleWhatsApp = () => {
+  const handleWhatsApp = async () => {
     if (!validate()) return;
 
     if (!teacherPhone || teacherPhone.length < 10) {
@@ -120,7 +145,27 @@ export const SubmissionBar: React.FC<Props> = ({
       return;
     }
 
-    const text = formatMessage();
+    let currentAIData = aiData;
+
+    // Se ainda não tiver feedback da IA, gera automaticamente antes de enviar
+    if (!currentAIData) {
+      setIsGenerating(true);
+      try {
+        const questionsForAI = submissionData.map(item => ({
+          question: item.question,
+          answer: item.answer
+        }));
+        
+        currentAIData = await evaluateActivities(lessonTitle, theory, questionsForAI);
+      } catch (error) {
+        console.error("Erro na geração automática:", error);
+        alert("Ocorreu um erro ao gerar o feedback automático. A mensagem será enviada sem a correção.");
+      } finally {
+        setIsGenerating(false);
+      }
+    }
+
+    const text = formatMessage(currentAIData);
     const encodedText = encodeURIComponent(text);
     
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -131,7 +176,7 @@ export const SubmissionBar: React.FC<Props> = ({
 
   const handleCopy = () => {
     if (!validate()) return;
-    const text = formatMessage();
+    const text = formatMessage(aiData);
     navigator.clipboard.writeText(text).then(() => {
       setCopyFeedback(true);
       setTimeout(() => setCopyFeedback(false), 2000);
@@ -141,12 +186,21 @@ export const SubmissionBar: React.FC<Props> = ({
   const handleMailto = () => {
     if (!validate()) return;
     const subject = `Atividade: ${studentName} - ${schoolClass} - ${getFormattedDate()}`;
-    const body = formatMessage();
+    const body = formatMessage(aiData);
     window.location.href = `mailto:${teacherEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-50">
+      
+      {/* Indicador Flutuante de Correção */}
+      {aiData && (
+        <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce">
+          <Sparkles className="w-3 h-3 text-yellow-300" />
+          Correção do Professor anexada ao envio
+        </div>
+      )}
+
       <div className="container mx-auto max-w-3xl">
         
         {showPhoneInput && (
@@ -188,7 +242,8 @@ export const SubmissionBar: React.FC<Props> = ({
             
             <button
               onClick={handleCopy}
-              className="flex-1 md:flex-none bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+              disabled={isGenerating}
+              className="flex-1 md:flex-none bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               title="Copiar Respostas"
             >
               {copyFeedback ? <CheckCircle className="w-5 h-5 text-green-600" /> : <Copy className="w-5 h-5" />}
@@ -197,7 +252,8 @@ export const SubmissionBar: React.FC<Props> = ({
 
              <button
               onClick={handleMailto}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+              disabled={isGenerating}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               title="Enviar por E-mail"
             >
               <Mail className="w-5 h-5" />
@@ -205,15 +261,26 @@ export const SubmissionBar: React.FC<Props> = ({
 
             <button
               onClick={handleWhatsApp}
-              className="flex-[2] bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-transform hover:scale-[1.02] flex items-center justify-center gap-2"
+              disabled={isGenerating}
+              className={`flex-[2] bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-transform hover:scale-[1.02] flex items-center justify-center gap-2 ${isGenerating ? 'cursor-not-allowed opacity-80' : ''}`}
             >
-              <Send className="w-5 h-5" />
-              <span>Enviar WhatsApp</span>
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Corrigindo e Gerando...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-5 h-5" />
+                  <span>Enviar WhatsApp</span>
+                </>
+              )}
             </button>
 
             <button 
               onClick={() => setShowPhoneInput(!showPhoneInput)}
-              className="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              disabled={isGenerating}
+              className="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition disabled:opacity-50"
               title="Configurar Número"
             >
               <Settings className="w-5 h-5" />
