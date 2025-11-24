@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, ArrowLeft, Send, MessageCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Mail, ArrowLeft, Send, MessageCircle, CheckCircle } from 'lucide-react';
 
 export const Contact: React.FC = () => {
   const [name, setName] = useState('');
@@ -8,7 +8,10 @@ export const Contact: React.FC = () => {
   const [message, setMessage] = useState('');
   
   // E-mail configurado para envio
-  const targetEmail = "divinoviana@gmail.com"; 
+  // OBSERVAÇÃO: Se o e-mail ativado no FormSubmit for o institucional,
+  // e ele for diferente deste, o envio não funcionará. 
+  // O FormSubmit exige que o e-mail no atributo 'action' seja exatamente o ativado.
+  const targetEmail = "divino.viana@professor.to.gov.br"; 
   const teacherPhone = "63999191919";
 
   const handleWhatsApp = () => {
@@ -59,21 +62,22 @@ export const Contact: React.FC = () => {
         {/* Lado Direito / Baixo - Formulário */}
         <div className="p-8 md:w-2/3 bg-white">
           {/* 
-             Formulário usando FormSubmit.co via ação POST padrão do HTML.
-             Isso é mais robusto que AJAX puro em alguns navegadores e garante o envio.
-             A página de sucesso será a padrão do FormSubmit ou podemos redirecionar.
+             Formulário usando FormSubmit.co.
+             target="_blank" abre em nova aba para garantir que o envio funcione sem erros de script.
           */}
           <form 
             action={`https://formsubmit.co/${targetEmail}`} 
             method="POST" 
+            target="_blank"
             className="space-y-5"
           >
-            {/* Configurações ocultas do FormSubmit */}
-            <input type="hidden" name="_subject" value={`Novo contato via Site de Filosofia`} />
+            {/* Configurações do FormSubmit */}
+            <input type="hidden" name="_subject" value={`Novo contato - Portal de Filosofia`} />
             <input type="hidden" name="_template" value="table" />
-            <input type="hidden" name="_captcha" value="false" />
-            {/* Redirecionar de volta para o site após envio (opcional, remove se quiser a tela de sucesso do FormSubmit) */}
-            <input type="hidden" name="_next" value={window.location.href} />
+            
+            {/* Removido _captcha=false para evitar bloqueio de spam em contas novas */}
+            {/* Removido _next para permitir que o usuário veja a confirmação de envio padrão do FormSubmit */}
+            
             <input type="hidden" name="_autoresponse" value="Recebi sua mensagem. Em breve retornarei o contato. Atenciosamente, Prof. Divino Viana." />
 
             <div>
@@ -82,7 +86,7 @@ export const Contact: React.FC = () => {
               </label>
               <input 
                 id="name"
-                name="name"
+                name="Nome do Aluno"
                 type="text" 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -130,6 +134,10 @@ export const Contact: React.FC = () => {
             >
               <Send className="w-5 h-5" /> Enviar Mensagem
             </button>
+            
+            <p className="text-xs text-center text-slate-400 mt-2">
+              Uma nova aba se abrirá para confirmar o envio.
+            </p>
           </form>
 
           <div className="mt-8 pt-6 border-t border-slate-100">

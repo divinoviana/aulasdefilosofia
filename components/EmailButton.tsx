@@ -14,7 +14,7 @@ export const EmailButton: React.FC<Props> = ({
   schoolClass, 
   lessonTitle, 
   answers,
-  teacherEmail = "divinoviana@gmail.com"
+  teacherEmail = "divino.viana@professor.to.gov.br"
 }) => {
   
   const handleSend = () => {

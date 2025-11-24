@@ -10,8 +10,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     base: './', // Caminho relativo garante que funcione no GitHub Pages e Vercel sem config extra
     define: {
-      // Injeta a API Key de forma segura no build para o cliente
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      // Injeta a API Key de forma segura no build, garantindo uma string vazia caso não exista para evitar crash
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || "")
     }
   };
 });

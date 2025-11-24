@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Inicializa a IA com a chave de API injetada pelo Vite
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Não inicializamos a IA no topo do arquivo para evitar que o site quebre 
+// caso a API Key não esteja configurada no carregamento inicial.
 
 export interface CorrectionResult {
   question: string;
@@ -22,6 +22,15 @@ export const evaluateActivities = async (
   questionsAndAnswers: { question: string; answer: string }[]
 ): Promise<AIResponse> => {
   
+  // Verificação de segurança no momento da chamada
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey.trim() === "") {
+    throw new Error("A chave de API (API Key) não está configurada no sistema. Entre em contato com o professor.");
+  }
+
+  // Inicializa apenas quando necessário
+  const ai = new GoogleGenAI({ apiKey });
+
   if (!questionsAndAnswers || questionsAndAnswers.length === 0) {
     throw new Error("Nenhuma resposta para avaliar.");
   }
@@ -94,6 +103,6 @@ export const evaluateActivities = async (
 
   } catch (error) {
     console.error("Erro ao avaliar com IA:", error);
-    throw new Error("Não foi possível conectar ao assistente de correção. Verifique sua chave de API ou conexão.");
+    throw new Error("Não foi possível conectar ao assistente de correção. Verifique sua conexão ou a chave de API.");
   }
 };

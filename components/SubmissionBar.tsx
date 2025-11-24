@@ -25,7 +25,7 @@ export const SubmissionBar: React.FC<Props> = ({
   submissionDate,
   lessonTitle, 
   submissionData,
-  teacherEmail = "divinoviana@gmail.com",
+  teacherEmail = "divino.viana@professor.to.gov.br",
   aiData,
   theory
 }) => {
