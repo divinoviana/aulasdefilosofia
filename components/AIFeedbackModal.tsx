@@ -30,8 +30,8 @@ export const AIFeedbackModal: React.FC<Props> = ({ isOpen, onClose, data, isLoad
               <Bot className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-xl font-bold">Assistente Filosófico</h3>
-              <p className="text-xs text-indigo-100 opacity-90">Correção Automática via IA</p>
+              <h3 className="text-xl font-bold">Assistente Virtual</h3>
+              <p className="text-xs text-indigo-100 opacity-90">Análise de Respostas</p>
             </div>
           </div>
           <button 
@@ -93,7 +93,7 @@ export const AIFeedbackModal: React.FC<Props> = ({ isOpen, onClose, data, isLoad
                     </div>
 
                     <div className={`p-4 rounded-lg text-sm ${item.isCorrect ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-900'}`}>
-                      <span className="font-bold block mb-1">Feedback do Professor IA:</span>
+                      <span className="font-bold block mb-1">Feedback do Professor:</span>
                       {item.feedback}
                     </div>
                   </div>

@@ -135,7 +135,7 @@ export const LessonView: React.FC = () => {
       setAiData(result);
     } catch (error) {
       console.error(error);
-      alert("Ocorreu um erro ao conectar com a IA. Tente novamente mais tarde.");
+      alert("Ocorreu um erro ao conectar com o sistema de correção. Tente novamente mais tarde.");
       setIsAIModalOpen(false);
     } finally {
       setAiLoading(false);
@@ -325,7 +325,7 @@ export const LessonView: React.FC = () => {
                  <Bot className="w-8 h-8 text-white" />
                </div>
                <div>
-                 <h4 className="font-bold text-lg">Correção com Inteligência Artificial</h4>
+                 <h4 className="font-bold text-lg">Pré-análise das Respostas</h4>
                  <p className="text-indigo-100 text-sm opacity-90">Receba feedback imediato sobre suas respostas antes de enviar.</p>
                </div>
              </div>
@@ -334,7 +334,7 @@ export const LessonView: React.FC = () => {
                className="bg-white text-indigo-700 hover:bg-indigo-50 font-bold py-3 px-6 rounded-xl shadow-md transition-all flex items-center gap-2 whitespace-nowrap"
              >
                <Sparkles className="w-4 h-4" />
-               Corrigir Agora
+               Analisar Agora
              </button>
           </div>
 

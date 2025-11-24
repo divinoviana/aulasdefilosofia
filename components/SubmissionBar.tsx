@@ -29,7 +29,7 @@ export const SubmissionBar: React.FC<Props> = ({
   aiData,
   theory
 }) => {
-  const DEFAULT_PHONE = "63981127876";
+  const DEFAULT_PHONE = "63999191919";
 
   const [teacherPhone, setTeacherPhone] = useState('');
   const [showPhoneInput, setShowPhoneInput] = useState(false);
@@ -159,7 +159,7 @@ export const SubmissionBar: React.FC<Props> = ({
         currentAIData = await evaluateActivities(lessonTitle, theory, questionsForAI);
       } catch (error) {
         console.error("Erro na geração automática:", error);
-        alert("Ocorreu um erro ao gerar o feedback automático. A mensagem será enviada sem a correção.");
+        alert("Ocorreu um erro ao gerar a correção automática. A mensagem será enviada sem a correção.");
       } finally {
         setIsGenerating(false);
       }
@@ -267,12 +267,12 @@ export const SubmissionBar: React.FC<Props> = ({
               {isGenerating ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Corrigindo e Gerando...</span>
+                  <span>Analisando e Enviando...</span>
                 </>
               ) : (
                 <>
                   <Send className="w-5 h-5" />
-                  <span>Enviar WhatsApp</span>
+                  <span>Enviar ao Professor</span>
                 </>
               )}
             </button>
