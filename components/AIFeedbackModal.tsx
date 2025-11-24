@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Bot, CheckCircle, AlertCircle, Star } from 'lucide-react';
+import { X, Sparkles, CheckCircle, AlertCircle, Star } from 'lucide-react';
 import { AIResponse } from '../services/aiService';
 
 interface Props {
@@ -27,11 +27,11 @@ export const AIFeedbackModal: React.FC<Props> = ({ isOpen, onClose, data, isLoad
         <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-6 flex justify-between items-center text-white shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/20 rounded-lg backdrop-blur-md">
-              <Bot className="w-6 h-6" />
+              <Sparkles className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-xl font-bold">Assistente Virtual</h3>
-              <p className="text-xs text-indigo-100 opacity-90">Análise de Respostas</p>
+              <h3 className="text-xl font-bold">Feedback da Atividade</h3>
+              <p className="text-xs text-indigo-100 opacity-90">Análise preliminar das respostas</p>
             </div>
           </div>
           <button 
@@ -47,8 +47,8 @@ export const AIFeedbackModal: React.FC<Props> = ({ isOpen, onClose, data, isLoad
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
               <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-              <p className="text-slate-600 font-medium animate-pulse">Analisando suas reflexões...</p>
-              <p className="text-xs text-slate-400">Consultando os grandes filósofos...</p>
+              <p className="text-slate-600 font-medium animate-pulse">Lendo suas respostas...</p>
+              <p className="text-xs text-slate-400">Verificando consistência filosófica...</p>
             </div>
           ) : data ? (
             <div className="space-y-8">
@@ -79,9 +79,9 @@ export const AIFeedbackModal: React.FC<Props> = ({ isOpen, onClose, data, isLoad
                           : 'bg-amber-100 text-amber-700'
                       }`}>
                         {item.isCorrect ? (
-                          <><CheckCircle className="w-3 h-3" /> Correto</>
+                          <><CheckCircle className="w-3 h-3" /> Bom argumento</>
                         ) : (
-                          <><AlertCircle className="w-3 h-3" /> Atenção</>
+                          <><AlertCircle className="w-3 h-3" /> Revisar conceito</>
                         )}
                         <span className="ml-1 border-l border-current pl-2">Nota: {item.score}/10</span>
                       </div>
@@ -93,7 +93,7 @@ export const AIFeedbackModal: React.FC<Props> = ({ isOpen, onClose, data, isLoad
                     </div>
 
                     <div className={`p-4 rounded-lg text-sm ${item.isCorrect ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-900'}`}>
-                      <span className="font-bold block mb-1">Feedback do Professor:</span>
+                      <span className="font-bold block mb-1">Comentário:</span>
                       {item.feedback}
                     </div>
                   </div>
@@ -103,7 +103,7 @@ export const AIFeedbackModal: React.FC<Props> = ({ isOpen, onClose, data, isLoad
           ) : (
             <div className="text-center py-10 text-slate-500">
               <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p>Não foi possível gerar o feedback. Tente novamente.</p>
+              <p>Não foi possível gerar a análise no momento. Tente novamente.</p>
             </div>
           )}
         </div>
