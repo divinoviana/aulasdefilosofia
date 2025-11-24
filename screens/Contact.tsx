@@ -8,7 +8,7 @@ export const Contact: React.FC = () => {
   const [message, setMessage] = useState('');
   
   const targetEmail = "divino.viana@professor.to.gov.br"; 
-  const teacherPhone = "63999191919";
+  const teacherPhone = "63981127876";
 
   const handleWhatsApp = () => {
     if (!name.trim()) {

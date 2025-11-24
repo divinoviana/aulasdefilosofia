@@ -29,7 +29,7 @@ export const SubmissionBar: React.FC<Props> = ({
   aiData,
   theory
 }) => {
-  const DEFAULT_PHONE = "63999191919";
+  const DEFAULT_PHONE = "63981127876";
 
   const [teacherPhone, setTeacherPhone] = useState('');
   const [showPhoneInput, setShowPhoneInput] = useState(false);
