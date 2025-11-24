@@ -7,10 +7,6 @@ export const Contact: React.FC = () => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   
-  // E-mail configurado para envio
-  // OBSERVAÇÃO: Se o e-mail ativado no FormSubmit for o institucional,
-  // e ele for diferente deste, o envio não funcionará. 
-  // O FormSubmit exige que o e-mail no atributo 'action' seja exatamente o ativado.
   const targetEmail = "divino.viana@professor.to.gov.br"; 
   const teacherPhone = "63999191919";
 
@@ -26,6 +22,22 @@ export const Contact: React.FC = () => {
     const baseUrl = isMobile ? 'https://api.whatsapp.com/send' : 'https://web.whatsapp.com/send';
     
     window.open(`${baseUrl}?phone=55${teacherPhone}&text=${encodedText}`, '_blank');
+  };
+
+  const handleEmailSend = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      alert("Por favor, preencha todos os campos antes de enviar.");
+      return;
+    }
+
+    const subject = `Contato Portal Filosofia: ${name}`;
+    const bodyContent = `Nome do Aluno: ${name}\nE-mail para retorno: ${email}\n\n--- MENSAGEM ---\n\n${message}`;
+    
+    const mailtoUrl = `mailto:${targetEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyContent)}`;
+    
+    window.location.href = mailtoUrl;
   };
 
   return (
@@ -50,7 +62,7 @@ export const Contact: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center gap-3 text-sm text-slate-300">
               <Mail className="w-4 h-4 text-tocantins-yellow" />
-              <span>Resposta via E-mail</span>
+              <span>divino.viana@professor.to.gov.br</span>
             </div>
             <div className="flex items-center gap-3 text-sm text-slate-300">
               <CheckCircle className="w-4 h-4 text-tocantins-green" />
@@ -61,32 +73,13 @@ export const Contact: React.FC = () => {
 
         {/* Lado Direito / Baixo - Formulário */}
         <div className="p-8 md:w-2/3 bg-white">
-          {/* 
-             Formulário usando FormSubmit.co.
-             target="_blank" abre em nova aba para garantir que o envio funcione sem erros de script.
-          */}
-          <form 
-            action={`https://formsubmit.co/${targetEmail}`} 
-            method="POST" 
-            target="_blank"
-            className="space-y-5"
-          >
-            {/* Configurações do FormSubmit */}
-            <input type="hidden" name="_subject" value={`Novo contato - Portal de Filosofia`} />
-            <input type="hidden" name="_template" value="table" />
-            
-            {/* Removido _captcha=false para evitar bloqueio de spam em contas novas */}
-            {/* Removido _next para permitir que o usuário veja a confirmação de envio padrão do FormSubmit */}
-            
-            <input type="hidden" name="_autoresponse" value="Recebi sua mensagem. Em breve retornarei o contato. Atenciosamente, Prof. Divino Viana." />
-
+          <form onSubmit={handleEmailSend} className="space-y-5">
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2" htmlFor="name">
                 Seu Nome
               </label>
               <input 
                 id="name"
-                name="Nome do Aluno"
                 type="text" 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -102,7 +95,6 @@ export const Contact: React.FC = () => {
               </label>
               <input 
                 id="email"
-                name="email"
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -118,7 +110,6 @@ export const Contact: React.FC = () => {
               </label>
               <textarea 
                 id="message"
-                name="message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={4}
@@ -132,11 +123,11 @@ export const Contact: React.FC = () => {
               type="submit"
               className="w-full bg-tocantins-blue hover:bg-blue-800 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all hover:shadow-lg flex items-center justify-center gap-2"
             >
-              <Send className="w-5 h-5" /> Enviar Mensagem
+              <Send className="w-5 h-5" /> Abrir E-mail para Enviar
             </button>
             
             <p className="text-xs text-center text-slate-400 mt-2">
-              Uma nova aba se abrirá para confirmar o envio.
+              Isso abrirá seu aplicativo de e-mail padrão.
             </p>
           </form>
 

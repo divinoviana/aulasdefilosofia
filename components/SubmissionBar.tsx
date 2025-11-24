@@ -146,9 +146,10 @@ export const SubmissionBar: React.FC<Props> = ({
     }
 
     let currentAIData = aiData;
+    const apiKey = process.env.API_KEY;
 
-    // Se ainda não tiver feedback da IA, gera automaticamente antes de enviar
-    if (!currentAIData) {
+    // Se ainda não tiver feedback da IA, tenta gerar, mas NÃO BLOQUEIA se falhar
+    if (!currentAIData && apiKey && apiKey.length > 5) {
       setIsGenerating(true);
       try {
         const questionsForAI = submissionData.map(item => ({
@@ -158,8 +159,9 @@ export const SubmissionBar: React.FC<Props> = ({
         
         currentAIData = await evaluateActivities(lessonTitle, theory, questionsForAI);
       } catch (error) {
-        console.error("Erro na geração automática:", error);
-        alert("Ocorreu um erro ao gerar a correção automática. A mensagem será enviada sem a correção.");
+        console.error("Erro na geração automática (Ignorado para envio):", error);
+        // Não alertamos o usuário aqui. Se a IA falhar, enviamos sem a correção para não travar o aluno.
+        currentAIData = null;
       } finally {
         setIsGenerating(false);
       }
@@ -267,7 +269,7 @@ export const SubmissionBar: React.FC<Props> = ({
               {isGenerating ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Analisando e Enviando...</span>
+                  <span>Gerando Correção...</span>
                 </>
               ) : (
                 <>

@@ -110,8 +110,9 @@ export const LessonView: React.FC = () => {
       return;
     }
 
-    if (!process.env.API_KEY) {
-        alert("Chave de API não configurada. O professor deve configurar a variável de ambiente.");
+    const apiKey = process.env.API_KEY;
+    if (!apiKey || apiKey.length < 5) {
+        alert("O sistema de correção automática (IA) está desativado no momento. Você ainda pode enviar suas respostas para o professor normalmente através da barra inferior.");
         return;
     }
 
@@ -135,7 +136,7 @@ export const LessonView: React.FC = () => {
       setAiData(result);
     } catch (error) {
       console.error(error);
-      alert("Ocorreu um erro ao conectar com o sistema de correção. Tente novamente mais tarde.");
+      alert("Ocorreu um erro ao conectar com o sistema de correção. Verifique sua conexão. Suas respostas não foram perdidas.");
       setIsAIModalOpen(false);
     } finally {
       setAiLoading(false);
