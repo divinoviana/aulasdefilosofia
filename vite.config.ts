@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react()],
-    base: './',
+    base: '/', // Configuração correta para Vercel (raiz do domínio)
     define: {
       // Injeta a API Key de forma segura no build para o cliente
       'process.env.API_KEY': JSON.stringify(env.API_KEY)
