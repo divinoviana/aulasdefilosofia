@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { curriculumData } from '../data';
-import { ChevronRight, GraduationCap, User, BookOpen, Youtube, ExternalLink } from 'lucide-react';
+import { ChevronRight, GraduationCap, BookOpen, Youtube, ExternalLink, UserCircle } from 'lucide-react';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -88,7 +88,7 @@ export const Home: React.FC = () => {
                     {grade.description}
                   </p>
                   <div className="mt-auto flex items-center text-sm font-bold text-tocantins-blue">
-                    Acessar Bimesteres e Aulas <ChevronRight className="w-4 h-4 ml-1" />
+                    Acessar Bimestres e Aulas <ChevronRight className="w-4 h-4 ml-1" />
                   </div>
                 </div>
               </Link>
@@ -98,21 +98,10 @@ export const Home: React.FC = () => {
           {/* Coluna do Perfil do Professor (Direita) */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden sticky top-24">
-              <div className="h-32 bg-slate-900 relative">
-                 <div className="absolute -bottom-12 left-1/2 -translate-x-1/2">
-                    <div className="w-24 h-24 rounded-2xl overflow-hidden border-4 border-white shadow-lg">
-                       <img 
-                         src="https://raw.githubusercontent.com/divinoviana/portal-filosofia/main/photo.jpg" 
-                         alt="Prof. Divino Ribeiro Viana" 
-                         className="w-full h-full object-cover"
-                         onError={(e) => {
-                           e.currentTarget.src = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?fit=crop&w=400&h=400";
-                         }}
-                       />
-                    </div>
-                 </div>
+              <div className="h-24 bg-slate-900 flex items-center justify-center">
+                 <UserCircle className="w-16 h-16 text-white/20" />
               </div>
-              <div className="pt-16 pb-8 px-6 text-center">
+              <div className="pt-6 pb-8 px-6 text-center">
                 <h3 className="text-xl font-bold text-slate-800">Prof. Me. Divino Ribeiro Viana</h3>
                 <p className="text-tocantins-blue font-semibold text-sm mb-4">Filosofia e Pesquisa</p>
                 <div className="text-slate-600 text-sm leading-relaxed mb-6 space-y-3 text-justify">

@@ -33,7 +33,7 @@ export const SubmissionBar: React.FC<Props> = ({
   const [dbStatus, setDbStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   const validate = () => {
-    if (!studentName.trim() || !schoolClass.trim() || !submissionDate.trim()) {
+    if (!studentName?.trim() || !schoolClass?.trim()) {
       alert("Erro: Informações do aluno não encontradas. Tente fazer login novamente.");
       return false;
     }
@@ -53,7 +53,7 @@ export const SubmissionBar: React.FC<Props> = ({
     let currentAIData = aiData;
     const apiKey = process.env.API_KEY;
 
-    // Se o aluno ainda não gerou feedback da IA, geramos automaticamente no envio para o professor ter a nota
+    // Gerar nota via IA caso não tenha sido gerada antes do envio
     if (!currentAIData && apiKey && apiKey.length > 5) {
       try {
         const q = submissionData.map(item => ({ question: item.question, answer: item.answer }));
@@ -64,28 +64,33 @@ export const SubmissionBar: React.FC<Props> = ({
     }
 
     try {
+      // Garantimos que os nomes das colunas batem exatamente com o que o AdminDashboard espera ler
+      const submissionPayload = {
+        student_name: studentName.trim(),
+        school_class: schoolClass.trim(),
+        lesson_title: lessonTitle.trim(),
+        submission_date: submissionDate || new Date().toISOString().split('T')[0],
+        content: submissionData, // Objeto JSON das respostas
+        ai_feedback: currentAIData,
+        score: currentAIData ? currentAIData.corrections.reduce((acc, c) => acc + (Number(c.score) || 0), 0) / currentAIData.corrections.length : 0,
+        created_at: new Date().toISOString()
+      };
+
       const { error } = await supabase
         .from('submissions')
-        .insert([
-          {
-            student_name: studentName,
-            school_class: schoolClass,
-            lesson_title: lessonTitle,
-            submission_date: submissionDate,
-            content: submissionData,
-            ai_feedback: currentAIData,
-            score: currentAIData ? currentAIData.corrections.reduce((acc, c) => acc + c.score, 0) / currentAIData.corrections.length : null
-          }
-        ]);
+        .insert([submissionPayload]);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erro Supabase:", error);
+        throw error;
+      }
       
       setDbStatus('saved');
-      alert("Atividade enviada com sucesso! O professor já pode visualizá-la no painel dele.");
+      alert("Sucesso! Sua atividade foi entregue ao Professor Divino.");
     } catch (error) {
-      console.error("Erro ao salvar no banco:", error);
+      console.error("Erro completo ao salvar:", error);
       setDbStatus('error');
-      alert("Ocorreu um erro ao enviar para o sistema. Verifique sua conexão.");
+      alert("Ocorreu um erro ao salvar no sistema. Suas respostas ainda estão na tela, tente enviar novamente.");
     } finally {
       setIsGenerating(false);
     }
@@ -109,9 +114,9 @@ export const SubmissionBar: React.FC<Props> = ({
              <div>
                 <p className="text-[10px] uppercase font-bold text-slate-400 leading-none mb-1">Status do Envio</p>
                 <p className={`text-sm font-bold ${dbStatus === 'saved' ? 'text-green-600' : 'text-slate-600'}`}>
-                  {dbStatus === 'saving' ? 'Enviando para o Professor...' : 
-                   dbStatus === 'saved' ? 'Entregue ao Sistema' : 
-                   dbStatus === 'error' ? 'Falha no Envio' : 'Pronto para Enviar'}
+                  {dbStatus === 'saving' ? 'Gravando no Banco...' : 
+                   dbStatus === 'saved' ? 'Atividade Recebida!' : 
+                   dbStatus === 'error' ? 'Erro na Gravação' : 'Pronto para Enviar'}
                 </p>
              </div>
           </div>
@@ -131,8 +136,8 @@ export const SubmissionBar: React.FC<Props> = ({
               <Send className="w-5 h-5" />
             )}
             <span>
-              {isGenerating ? 'Enviando...' : 
-               dbStatus === 'saved' ? 'Atividade Enviada' : 'Finalizar e Enviar Atividade'}
+              {isGenerating ? 'Processando...' : 
+               dbStatus === 'saved' ? 'Enviado' : 'Finalizar e Enviar Atividade'}
             </span>
           </button>
           

@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { curriculumData } from '../data';
 import { ActivityInput } from '../components/ActivityInput';
 import { SubmissionBar, SubmissionItem } from '../components/SubmissionBar';
-import { ArrowLeft, BookOpen, PenTool, Sparkles } from 'lucide-react';
+import { ArrowLeft, BookOpen, PenTool, Sparkles, Home } from 'lucide-react';
 import { evaluateActivities, AIResponse } from '../services/aiService';
 import { AIFeedbackModal } from '../components/AIFeedbackModal';
 
@@ -32,11 +32,13 @@ export const LessonView: React.FC = () => {
   };
 
   let foundLesson = null;
+  let parentGradeId = 1;
   for (const g of curriculumData) {
     for (const b of g.bimesters) {
       const l = b.lessons.find(l => l.id === lessonId);
       if (l) {
         foundLesson = l;
+        parentGradeId = g.id;
         break;
       }
     }
@@ -91,12 +93,26 @@ export const LessonView: React.FC = () => {
     <div className="min-h-screen bg-slate-50 pb-32">
       <AIFeedbackModal isOpen={isAIModalOpen} isLoading={aiLoading} data={aiData} onClose={() => setIsAIModalOpen(false)} />
       
+      {/* Botão Flutuante de Voltar para Home - Útil para scrolls longos */}
+      <Link 
+        to="/" 
+        className="fixed top-20 left-4 z-40 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg border border-slate-200 text-slate-600 hover:text-tocantins-blue hover:scale-110 transition-all md:hidden"
+        title="Voltar ao Início"
+      >
+        <Home size={20} />
+      </Link>
+
       <div className="relative h-60 w-full overflow-hidden bg-slate-800">
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/30 to-slate-50"></div>
         <div className="relative z-10 container mx-auto px-4 h-full flex flex-col justify-center max-w-4xl">
-           <Link to="/" className="inline-flex items-center text-white/90 mb-4 bg-black/30 px-3 py-1 rounded-full backdrop-blur-md">
-            <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
-          </Link>
+           <div className="flex gap-2 mb-4">
+              <Link to="/" className="inline-flex items-center text-white/90 bg-black/30 hover:bg-black/50 px-4 py-2 rounded-full backdrop-blur-md transition-colors border border-white/10 text-sm font-bold">
+                <Home className="w-4 h-4 mr-2" /> Início
+              </Link>
+              <Link to={`/grade/${parentGradeId}`} className="inline-flex items-center text-white/90 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full backdrop-blur-md transition-colors border border-white/10 text-sm font-bold">
+                <ArrowLeft className="w-4 h-4 mr-2" /> Grade
+              </Link>
+           </div>
           <h1 className="text-3xl font-bold text-white">{foundLesson.title}</h1>
           {student && (
             <div className="flex items-center gap-2 mt-4 text-white/90 bg-white/10 w-fit px-4 py-2 rounded-full backdrop-blur-sm border border-white/20">
@@ -144,6 +160,13 @@ export const LessonView: React.FC = () => {
           <p className="text-center text-xs text-slate-400">
             Você pode revisar suas respostas com a IA antes de enviar definitivamente para o professor.
           </p>
+        </div>
+
+        {/* Botão de retorno adicional no fim do conteúdo */}
+        <div className="flex justify-center pb-8">
+          <Link to="/" className="flex items-center gap-2 text-slate-400 hover:text-tocantins-blue transition-colors font-bold text-sm">
+            <Home size={18} /> Voltar para a Página Inicial
+          </Link>
         </div>
       </div>
 

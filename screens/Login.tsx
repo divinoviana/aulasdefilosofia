@@ -22,31 +22,49 @@ export const Login: React.FC = () => {
   const [cameraActive, setCameraActive] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Limpa a câmera se o componente for desmontado
   useEffect(() => {
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
+      stopCamera();
     };
   }, []);
 
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+  };
+
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } } 
-      });
+      const constraints = {
+        video: { 
+          facingMode: 'user',
+          width: { ideal: 640 },
+          height: { ideal: 640 }
+        },
+        audio: false
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        // Importante para iOS e navegadores mobile
-        videoRef.current.setAttribute('playsinline', 'true');
-        await videoRef.current.play();
-        setCameraActive(true);
-      }
+      setCameraActive(true);
+      
+      // Pequeno timeout para garantir que o componente de vídeo foi montado no DOM antes de atribuir o stream
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(e => console.error("Erro ao dar play:", e));
+        }
+      }, 100);
+
     } catch (err) {
-      console.error("Erro câmera:", err);
-      alert("Não foi possível acessar a câmera. Verifique se deu permissão.");
+      console.error("Erro ao acessar câmera:", err);
+      alert("Erro ao acessar a câmera. Certifique-se de que deu permissão de acesso.");
     }
   };
 
@@ -57,8 +75,10 @@ export const Login: React.FC = () => {
       canvas.height = videoRef.current.videoHeight;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Inverter se for câmera frontal para parecer um espelho
-        ctx.drawImage(videoRef.current, 0, 0);
+        // Inverte horizontalmente para a foto não ficar espelhada (já que o vídeo está espelhado para o usuário)
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
         setPhoto(dataUrl);
         stopCamera();
@@ -66,17 +86,13 @@ export const Login: React.FC = () => {
     }
   };
 
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setCameraActive(false);
-  };
-
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert("A foto deve ter no máximo 2MB.");
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhoto(reader.result as string);
@@ -155,27 +171,27 @@ export const Login: React.FC = () => {
             <>
               <div className="flex flex-col items-center gap-4 mb-6">
                 <div className="relative group">
-                  <div className="w-32 h-32 rounded-full bg-slate-100 overflow-hidden border-4 border-white shadow-xl flex items-center justify-center">
+                  <div className="w-32 h-32 rounded-full bg-slate-200 overflow-hidden border-4 border-white shadow-xl flex items-center justify-center relative">
                     {cameraActive ? (
                       <video 
                         ref={videoRef} 
                         autoPlay 
                         muted 
                         playsInline
-                        className="w-full h-full object-cover scale-x-[-1]" 
+                        className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" 
                       />
                     ) : photo ? (
                       <img src={photo} className="w-full h-full object-cover" alt="Perfil" />
                     ) : (
-                      <User className="w-12 h-12 text-slate-300" />
+                      <User className="w-12 h-12 text-slate-400" />
                     )}
                   </div>
                   
                   {photo && !cameraActive && (
                     <button 
                       type="button" 
-                      onClick={() => setPhoto(null)}
-                      className="absolute -top-1 -right-1 bg-red-500 text-white p-1 rounded-full shadow-md hover:bg-red-600 transition"
+                      onClick={() => { setPhoto(null); setCameraActive(false); }}
+                      className="absolute -top-1 -right-1 bg-red-500 text-white p-1 rounded-full shadow-md hover:bg-red-600 transition z-10"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -190,7 +206,7 @@ export const Login: React.FC = () => {
                         onClick={startCamera} 
                         className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white text-xs font-bold rounded-full hover:bg-black transition"
                       >
-                        <Camera className="w-4 h-4" /> Câmera
+                        <Camera className="w-4 h-4" /> Ativar Câmera
                       </button>
                       <label className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-full cursor-pointer hover:bg-slate-50 transition">
                         <Upload className="w-4 h-4" /> Arquivo
@@ -201,21 +217,21 @@ export const Login: React.FC = () => {
                     <button 
                       type="button" 
                       onClick={takePhoto} 
-                      className="flex items-center gap-2 px-6 py-2 bg-tocantins-blue text-white text-xs font-bold rounded-full shadow-lg animate-pulse"
+                      className="flex items-center gap-2 px-6 py-2 bg-tocantins-blue text-white text-xs font-bold rounded-full shadow-lg"
                     >
-                      <Check className="w-4 h-4" /> Capturar Agora
+                      <Check className="w-4 h-4" /> Tirar Foto
                     </button>
                   )}
                 </div>
               </div>
 
               <div className="space-y-3">
-                <input required placeholder="Nome Completo" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-tocantins-blue outline-none transition" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                <input required placeholder="Nome Completo" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-tocantins-blue outline-none transition text-slate-700" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Série</label>
-                    <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-tocantins-blue outline-none" value={formData.grade} onChange={e => setFormData({...formData, grade: e.target.value})}>
+                    <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-tocantins-blue outline-none text-slate-700" value={formData.grade} onChange={e => setFormData({...formData, grade: e.target.value})}>
                       <option value="1">1ª Série</option>
                       <option value="2">2ª Série</option>
                       <option value="3">3ª Série</option>
@@ -223,7 +239,7 @@ export const Login: React.FC = () => {
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Turma</label>
-                    <select required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-tocantins-blue outline-none" value={formData.school_class} onChange={e => setFormData({...formData, school_class: e.target.value})}>
+                    <select required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-tocantins-blue outline-none text-slate-700" value={formData.school_class} onChange={e => setFormData({...formData, school_class: e.target.value})}>
                       <option value="">Selecionar</option>
                       {getClassesByGrade(formData.grade).map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
@@ -235,11 +251,11 @@ export const Login: React.FC = () => {
 
           <div className="space-y-3">
             <div className="relative">
-              <input required type="email" placeholder="E-mail" className="w-full p-3 pl-10 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-tocantins-blue outline-none transition" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+              <input required type="email" placeholder="E-mail" className="w-full p-3 pl-10 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-tocantins-blue outline-none transition text-slate-700" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
               <User className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
             </div>
             <div className="relative">
-              <input required type="password" placeholder="Senha" className="w-full p-3 pl-10 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-tocantins-blue outline-none transition" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+              <input required type="password" placeholder="Senha" className="w-full p-3 pl-10 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-tocantins-blue outline-none transition text-slate-700" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
               <Lock className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
             </div>
           </div>

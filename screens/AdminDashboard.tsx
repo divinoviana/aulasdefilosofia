@@ -1,20 +1,21 @@
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Users, BookOpen, Filter, Search, Trash2, Key, ChevronDown, UserSquare2, Check } from 'lucide-react';
+import { Users, BookOpen, Filter, Search, Trash2, Key, ChevronDown, UserSquare2, Check, Home, RefreshCw } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [pass, setPass] = useState('');
   const [students, setStudents] = useState<any[]>([]);
   const [submissions, setSubmissions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<'students' | 'submissions' | 'photos'>('submissions');
   const [filterGrade, setFilterGrade] = useState('all');
   const [filterClass, setFilterClass] = useState('all');
 
   const checkAdmin = () => {
-    // Senha mestre simples para o professor. No mundo real, use Supabase Auth.
-    if (pass === 'prof-divino-2026') {
+    if (pass === '3614526312') {
       setIsAdmin(true);
       fetchData();
     } else {
@@ -23,10 +24,21 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const fetchData = async () => {
-    const { data: st } = await supabase.from('students').select('*').order('name');
-    const { data: sub } = await supabase.from('submissions').select('*').order('created_at', { ascending: false });
-    setStudents(st || []);
-    setSubmissions(sub || []);
+    setLoading(true);
+    try {
+      const { data: st, error: stErr } = await supabase.from('students').select('*').order('name');
+      const { data: sub, error: subErr } = await supabase.from('submissions').select('*').order('created_at', { ascending: false });
+      
+      if (stErr) console.error("Erro estudantes:", stErr);
+      if (subErr) console.error("Erro submissões:", subErr);
+      
+      setStudents(st || []);
+      setSubmissions(sub || []);
+    } catch (e) {
+      console.error("Falha ao buscar dados:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteStudent = async (id: string) => {
@@ -45,14 +57,17 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const filteredSubmissions = submissions.filter(s => {
-    const gradeMatch = filterGrade === 'all' || s.school_class.startsWith(filterGrade);
-    const classMatch = filterClass === 'all' || s.school_class === filterClass;
+    const sClass = s.school_class || "";
+    const gradeMatch = filterGrade === 'all' || sClass.startsWith(filterGrade);
+    const classMatch = filterClass === 'all' || sClass === filterClass;
     return gradeMatch && classMatch;
   });
 
   const filteredStudents = students.filter(s => {
-    const gradeMatch = filterGrade === 'all' || s.grade === filterGrade;
-    const classMatch = filterClass === 'all' || s.school_class === filterClass;
+    const sGrade = String(s.grade || "");
+    const sClass = s.school_class || "";
+    const gradeMatch = filterGrade === 'all' || sGrade === filterGrade;
+    const classMatch = filterClass === 'all' || sClass === filterClass;
     return gradeMatch && classMatch;
   });
 
@@ -61,8 +76,16 @@ export const AdminDashboard: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
         <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full">
           <h2 className="text-xl font-bold mb-4">Acesso Restrito</h2>
-          <input type="password" placeholder="Senha do Professor" className="w-full p-3 border rounded-lg mb-4" value={pass} onChange={e => setPass(e.target.value)} />
-          <button onClick={checkAdmin} className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold">Acessar Painel</button>
+          <input 
+            type="password" 
+            placeholder="Senha do Professor" 
+            className="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 focus:ring-slate-400" 
+            value={pass} 
+            onChange={e => setPass(e.target.value)} 
+            onKeyDown={e => e.key === 'Enter' && checkAdmin()}
+          />
+          <button onClick={checkAdmin} className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold hover:bg-black transition">Acessar Painel</button>
+          <Link to="/" className="block text-center mt-6 text-slate-500 text-sm hover:underline">Voltar para o Portal</Link>
         </div>
       </div>
     );
@@ -71,11 +94,11 @@ export const AdminDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-white p-6 hidden md:block">
+      <aside className="w-64 bg-slate-900 text-white p-6 hidden md:flex flex-col">
         <h2 className="text-xl font-bold mb-8 flex items-center gap-2">
           <Key className="text-tocantins-yellow" /> Admin
         </h2>
-        <nav className="space-y-2">
+        <nav className="space-y-2 mb-8">
           <button onClick={() => setTab('submissions')} className={`w-full flex items-center gap-3 p-3 rounded-xl transition ${tab === 'submissions' ? 'bg-tocantins-blue text-white' : 'text-slate-400 hover:bg-white/10'}`}>
             <BookOpen size={20} /> Atividades
           </button>
@@ -86,23 +109,36 @@ export const AdminDashboard: React.FC = () => {
             <UserSquare2 size={20} /> Carômetro
           </button>
         </nav>
+        
+        <button onClick={fetchData} className="w-full flex items-center gap-3 p-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition mb-2">
+           <RefreshCw size={20} className={loading ? 'animate-spin' : ''} /> Atualizar Dados
+        </button>
+
+        <div className="mt-auto pt-8 border-t border-white/10">
+           <Link to="/" className="w-full flex items-center gap-3 p-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition">
+              <Home size={20} /> Ir para o Portal
+           </Link>
+        </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto max-h-screen">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <h1 className="text-3xl font-bold text-slate-800">
-            {tab === 'submissions' ? 'Atividades Recebidas' : tab === 'students' ? 'Gestão de Alunos' : 'Carômetro da Turma'}
-          </h1>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800">
+              {tab === 'submissions' ? 'Atividades Recebidas' : tab === 'students' ? 'Gestão de Alunos' : 'Carômetro da Turma'}
+            </h1>
+            <p className="text-slate-500 text-sm mt-1">Total de registros: {tab === 'submissions' ? filteredSubmissions.length : filteredStudents.length}</p>
+          </div>
           
           <div className="flex gap-2 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
-            <select className="bg-transparent text-sm font-bold p-1" value={filterGrade} onChange={e => setFilterGrade(e.target.value)}>
+            <select className="bg-transparent text-sm font-bold p-1 outline-none" value={filterGrade} onChange={e => setFilterGrade(e.target.value)}>
               <option value="all">Série: Todas</option>
               <option value="1">1ª Série</option>
               <option value="2">2ª Série</option>
               <option value="3">3ª Série</option>
             </select>
-            <select className="bg-transparent text-sm font-bold p-1" value={filterClass} onChange={e => setFilterClass(e.target.value)}>
+            <select className="bg-transparent text-sm font-bold p-1 outline-none" value={filterClass} onChange={e => setFilterClass(e.target.value)}>
               <option value="all">Turma: Todas</option>
               {filterGrade !== 'all' && (
                 filterGrade === '1' ? Array.from({length:6},(_,i)=>`13.0${i+1}`).map(c=><option key={c} value={c}>{c}</option>) :
@@ -113,9 +149,14 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        {tab === 'submissions' && (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+            <RefreshCw className="animate-spin mb-4" size={32} />
+            <p>Carregando dados do servidor...</p>
+          </div>
+        ) : tab === 'submissions' ? (
           <div className="grid gap-4">
-            {filteredSubmissions.length === 0 && <p className="text-center py-20 text-slate-400">Nenhuma atividade encontrada com este filtro.</p>}
+            {filteredSubmissions.length === 0 && <p className="text-center py-20 text-slate-400">Nenhuma atividade encontrada para os filtros selecionados.</p>}
             {filteredSubmissions.map(sub => (
               <div key={sub.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition">
                 <div className="flex justify-between items-start mb-4">
@@ -124,65 +165,71 @@ export const AdminDashboard: React.FC = () => {
                     <p className="text-xs text-slate-500 uppercase font-bold">{sub.school_class} • {sub.lesson_title}</p>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded">Nota IA: {sub.score?.toFixed(1) || '-'}</span>
-                    <p className="text-[10px] text-slate-400 mt-1">{new Date(sub.created_at).toLocaleString()}</p>
+                    <span className={`text-xs font-bold px-2 py-1 rounded ${sub.score >= 6 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                      Média IA: {typeof sub.score === 'number' ? sub.score.toFixed(1) : '-'}
+                    </span>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {sub.created_at ? new Date(sub.created_at).toLocaleString('pt-BR') : 'Sem data'}
+                    </p>
                   </div>
                 </div>
                 <div className="space-y-3 mt-4 border-t pt-4">
-                  {sub.content.map((item: any, i: number) => (
-                    <div key={i} className="text-sm">
+                  {Array.isArray(sub.content) ? sub.content.map((item: any, i: number) => (
+                    <div key={i} className="text-sm bg-slate-50 p-3 rounded-lg">
                       <p className="font-bold text-slate-700 italic">Q: {item.question}</p>
                       <p className="text-slate-600 mt-1">R: {item.answer}</p>
                     </div>
-                  ))}
+                  )) : <p className="text-xs text-slate-400">Conteúdo em formato inválido ou vazio.</p>}
                 </div>
               </div>
             ))}
           </div>
-        )}
-
-        {tab === 'students' && (
+        ) : tab === 'students' ? (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <table className="w-full text-left">
-              <thead className="bg-slate-50 border-b">
-                <tr>
-                  <th className="p-4 text-xs font-bold uppercase text-slate-500">Estudante</th>
-                  <th className="p-4 text-xs font-bold uppercase text-slate-500">Turma</th>
-                  <th className="p-4 text-xs font-bold uppercase text-slate-500">Email</th>
-                  <th className="p-4 text-xs font-bold uppercase text-slate-500 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filteredStudents.map(st => (
-                  <tr key={st.id} className="hover:bg-slate-50 transition">
-                    <td className="p-4 flex items-center gap-3">
-                      <img src={st.photo_url} className="w-8 h-8 rounded-full object-cover bg-slate-100" />
-                      <span className="font-bold text-slate-700">{st.name}</span>
-                    </td>
-                    <td className="p-4 text-sm text-slate-600 font-mono">{st.school_class}</td>
-                    <td className="p-4 text-sm text-slate-600">{st.email}</td>
-                    <td className="p-4 text-right space-x-2">
-                      <button onClick={() => changePassword(st.id)} className="p-2 text-slate-400 hover:text-tocantins-blue"><Key size={18} /></button>
-                      <button onClick={() => deleteStudent(st.id)} className="p-2 text-slate-400 hover:text-red-600"><Trash2 size={18} /></button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 border-b">
+                  <tr>
+                    <th className="p-4 text-xs font-bold uppercase text-slate-500">Estudante</th>
+                    <th className="p-4 text-xs font-bold uppercase text-slate-500">Turma</th>
+                    <th className="p-4 text-xs font-bold uppercase text-slate-500">Email</th>
+                    <th className="p-4 text-xs font-bold uppercase text-slate-500 text-right">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredStudents.map(st => (
+                    <tr key={st.id} className="hover:bg-slate-50 transition">
+                      <td className="p-4 flex items-center gap-3">
+                        <img src={st.photo_url || 'https://via.placeholder.com/150'} className="w-8 h-8 rounded-full object-cover bg-slate-100 border shadow-sm" />
+                        <span className="font-bold text-slate-700">{st.name}</span>
+                      </td>
+                      <td className="p-4 text-sm text-slate-600 font-mono">{st.school_class}</td>
+                      <td className="p-4 text-sm text-slate-600">{st.email}</td>
+                      <td className="p-4 text-right space-x-2">
+                        <button onClick={() => changePassword(st.id)} className="p-2 text-slate-400 hover:text-tocantins-blue transition" title="Alterar Senha"><Key size={18} /></button>
+                        <button onClick={() => deleteStudent(st.id)} className="p-2 text-slate-400 hover:text-red-600 transition" title="Excluir Aluno"><Trash2 size={18} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredStudents.length === 0 && (
+                    <tr><td colSpan={4} className="p-8 text-center text-slate-400">Nenhum aluno cadastrado.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        )}
-
-        {tab === 'photos' && (
+        ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
             {filteredStudents.map(st => (
               <div key={st.id} className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 text-center flex flex-col items-center group">
-                <div className="w-full aspect-square rounded-xl overflow-hidden mb-3 shadow-inner bg-slate-100">
-                  <img src={st.photo_url} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
+                <div className="w-full aspect-square rounded-xl overflow-hidden mb-3 shadow-inner bg-slate-100 border">
+                  <img src={st.photo_url || 'https://via.placeholder.com/150'} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
                 </div>
-                <h4 className="text-sm font-bold text-slate-800 leading-tight">{st.name.split(' ')[0]}</h4>
+                <h4 className="text-sm font-bold text-slate-800 leading-tight line-clamp-1">{st.name.split(' ')[0]}</h4>
                 <p className="text-[10px] font-bold text-tocantins-blue mt-1 uppercase">{st.school_class}</p>
               </div>
             ))}
+            {filteredStudents.length === 0 && <p className="col-span-full text-center py-20 text-slate-400">Nenhum aluno encontrado para exibir fotos.</p>}
           </div>
         )}
       </main>
