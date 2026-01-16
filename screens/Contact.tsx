@@ -1,149 +1,160 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Mail, ArrowLeft, Send, MessageCircle, CheckCircle } from 'lucide-react';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mail, ArrowLeft, Send, MessageCircle, CheckCircle, Loader2, UserCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export const Contact: React.FC = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
-  
-  const targetEmail = "divino.viana@professor.to.gov.br"; 
-  const teacherPhone = "63981127876";
+  const navigate = useNavigate();
+  const [student, setStudent] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(true);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const handleWhatsApp = () => {
-    if (!name.trim()) {
-      alert("Por favor, preencha pelo menos seu nome para iniciar a conversa.");
+  useEffect(() => {
+    const saved = localStorage.getItem('student');
+    if (!saved) {
+      navigate('/login');
       return;
     }
-    const text = `*Olá, Professor Divino.*\n\nSou o aluno(a) *${name}*.\n\n*Mensagem:*\n${message || '(Gostaria de tirar uma dúvida)'}`;
-    const encodedText = encodeURIComponent(text);
+    const studentData = JSON.parse(saved);
+    setStudent(studentData);
+    fetchMessages(studentData.id);
+
+    // Subscribe to new messages
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `sender_id=eq.${studentData.id}` }, 
+        () => fetchMessages(studentData.id)
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [navigate]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const fetchMessages = async (studentId: string) => {
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('sender_id', studentId)
+      .order('created_at', { ascending: true });
     
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const baseUrl = isMobile ? 'https://api.whatsapp.com/send' : 'https://web.whatsapp.com/send';
-    
-    window.open(`${baseUrl}?phone=55${teacherPhone}&text=${encodedText}`, '_blank');
+    setMessages(data || []);
+    setLoadingMessages(false);
   };
 
-  const handleEmailSend = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newMessage.trim() || !student) return;
 
-    if (!name.trim() || !email.trim() || !message.trim()) {
-      alert("Por favor, preencha todos os campos antes de enviar.");
-      return;
+    setSending(true);
+    try {
+      const { error } = await supabase.from('messages').insert([{
+        sender_id: student.id,
+        sender_name: student.name,
+        school_class: student.school_class,
+        grade: student.grade,
+        content: newMessage.trim(),
+        is_from_teacher: false
+      }]);
+
+      if (error) throw error;
+      setNewMessage('');
+      fetchMessages(student.id);
+    } catch (err) {
+      alert("Erro ao enviar mensagem.");
+    } finally {
+      setSending(false);
     }
-
-    const subject = `Contato Portal Filosofia: ${name}`;
-    const bodyContent = `Nome do Aluno: ${name}\nE-mail para retorno: ${email}\n\n--- MENSAGEM ---\n\n${message}`;
-    
-    const mailtoUrl = `mailto:${targetEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyContent)}`;
-    
-    window.location.href = mailtoUrl;
   };
+
+  if (!student) return null;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl min-h-[80vh] flex flex-col">
-      <Link to="/" className="inline-flex items-center text-slate-500 hover:text-tocantins-blue mb-6 font-medium transition-colors w-fit">
-        <ArrowLeft className="w-4 h-4 mr-1" /> Voltar para o início
-      </Link>
-
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col md:flex-row">
-        
-        {/* Lado Esquerdo / Topo - Cabeçalho Visual */}
-        <div className="bg-slate-900 text-white p-8 md:w-1/3 flex flex-col justify-between">
-          <div>
-            <div className="inline-flex items-center justify-center w-12 h-12 bg-white/10 rounded-xl mb-6 backdrop-blur-sm">
-              <MessageCircle className="w-6 h-6 text-tocantins-yellow" />
-            </div>
-            <h2 className="text-2xl font-serif font-bold mb-4">Fale com o Professor</h2>
-            <p className="text-slate-300 text-sm leading-relaxed mb-6">
-              Envie suas dúvidas, sugestões ou atividades pendentes diretamente por aqui.
-            </p>
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 text-sm text-slate-300">
-              <Mail className="w-4 h-4 text-tocantins-yellow" />
-              <span>divino.viana@professor.to.gov.br</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-slate-300">
-              <CheckCircle className="w-4 h-4 text-tocantins-green" />
-              <span>Canal Oficial</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Lado Direito / Baixo - Formulário */}
-        <div className="p-8 md:w-2/3 bg-white">
-          <form onSubmit={handleEmailSend} className="space-y-5">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2" htmlFor="name">
-                Seu Nome
-              </label>
-              <input 
-                id="name"
-                type="text" 
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-tocantins-blue focus:border-transparent outline-none transition"
-                placeholder="Ex: João Silva - 3º A"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2" htmlFor="email">
-                Seu E-mail
-              </label>
-              <input 
-                id="email"
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-tocantins-blue focus:border-transparent outline-none transition"
-                placeholder="Ex: joao@email.com"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2" htmlFor="message">
-                Mensagem
-              </label>
-              <textarea 
-                id="message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                rows={4}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-tocantins-blue focus:border-transparent outline-none transition resize-none"
-                placeholder="Escreva sua mensagem aqui..."
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-tocantins-blue hover:bg-blue-800 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all hover:shadow-lg flex items-center justify-center gap-2"
-            >
-              <Send className="w-5 h-5" /> Abrir E-mail para Enviar
-            </button>
-            
-            <p className="text-xs text-center text-slate-400 mt-2">
-              Isso abrirá seu aplicativo de e-mail padrão.
-            </p>
-          </form>
-
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <p className="text-center text-sm text-slate-500 mb-4">Prefere uma resposta mais rápida?</p>
-            <button
-              type="button"
-              onClick={handleWhatsApp}
-              className="w-full bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2"
-            >
-              <MessageCircle className="w-5 h-5" />
-              Chamar no WhatsApp
-            </button>
-          </div>
+    <div className="container mx-auto px-4 py-8 max-w-4xl min-h-[85vh] flex flex-col">
+      <div className="flex items-center justify-between mb-6">
+        <Link to="/" className="inline-flex items-center text-slate-500 hover:text-tocantins-blue font-medium transition-colors">
+          <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
+        </Link>
+        <div className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-full border border-slate-200">
+           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+           <span className="text-xs font-bold text-slate-600">Canal Direto com Prof. Divino</span>
         </div>
       </div>
+
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden flex flex-col h-[70vh]">
+        {/* Chat Header */}
+        <div className="bg-slate-900 p-4 text-white flex items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-tocantins-blue flex items-center justify-center border border-white/20">
+            <UserCircle size={24} />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm">Prof. Me. Divino Ribeiro Viana</h3>
+            <p className="text-[10px] text-slate-400">Geralmente responde em até 24h</p>
+          </div>
+        </div>
+
+        {/* Chat Messages */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
+          {loadingMessages ? (
+            <div className="flex justify-center items-center h-full">
+              <Loader2 className="animate-spin text-slate-300" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="text-center py-10">
+              <MessageCircle className="mx-auto text-slate-200 mb-4" size={48} />
+              <p className="text-slate-400 text-sm italic">Inicie uma conversa com o professor.<br/>Tire dúvidas sobre as aulas ou atividades.</p>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <div key={msg.id} className={`flex ${msg.is_from_teacher ? 'justify-start' : 'justify-end'}`}>
+                <div className={`max-w-[80%] p-4 rounded-2xl shadow-sm text-sm ${
+                  msg.is_from_teacher 
+                    ? 'bg-white border border-slate-200 text-slate-700 rounded-tl-none' 
+                    : 'bg-tocantins-blue text-white rounded-tr-none'
+                }`}>
+                  <p className="leading-relaxed">{msg.content}</p>
+                  <p className={`text-[10px] mt-2 ${msg.is_from_teacher ? 'text-slate-400' : 'text-blue-200'}`}>
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {msg.is_from_teacher && <span className="ml-2 font-bold text-tocantins-blue">• Professor</span>}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* Chat Input */}
+        <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-slate-100 flex gap-2">
+          <input 
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Digite sua mensagem aqui..."
+            className="flex-1 p-3 bg-slate-100 border-none rounded-2xl text-sm focus:ring-2 focus:ring-tocantins-blue outline-none transition"
+            disabled={sending}
+          />
+          <button 
+            type="submit"
+            disabled={sending || !newMessage.trim()}
+            className="bg-tocantins-blue text-white p-3 rounded-2xl hover:bg-blue-800 transition disabled:opacity-50 disabled:scale-95 flex items-center justify-center"
+          >
+            {sending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+          </button>
+        </form>
+      </div>
+
+      <p className="text-center text-[10px] text-slate-400 mt-6 uppercase tracking-widest font-bold">
+        Este é um canal pedagógico oficial. Mantenha o respeito e a ética.
+      </p>
     </div>
   );
 };

@@ -1,18 +1,23 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Users, BookOpen, Trash2, Key, UserSquare2, Home, RefreshCw, MessageSquare, CheckCircle, XCircle } from 'lucide-react';
+import { Users, BookOpen, Trash2, Key, UserSquare2, Home, RefreshCw, MessageSquare, Send, Loader2, ArrowLeft, CheckCircle, AlertTriangle } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [pass, setPass] = useState('');
   const [students, setStudents] = useState<any[]>([]);
   const [submissions, setSubmissions] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<'students' | 'submissions' | 'photos'>('submissions');
+  const [tab, setTab] = useState<'students' | 'submissions' | 'photos' | 'messages'>('submissions');
   const [filterGrade, setFilterGrade] = useState('all');
   const [filterClass, setFilterClass] = useState('all');
+
+  const [activeChatStudentId, setActiveChatStudentId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
 
   const checkAdmin = () => {
     if (pass === '3614526312') {
@@ -26,236 +31,259 @@ export const AdminDashboard: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: st } = await supabase.from('students').select('*').order('name');
-      const { data: sub } = await supabase.from('submissions').select('*').order('created_at', { ascending: false });
-      setStudents(st || []);
-      setSubmissions(sub || []);
-    } catch (e) {
-      console.error(e);
+      const [stRes, subRes, msgRes] = await Promise.all([
+        supabase.from('students').select('*').order('name'),
+        supabase.from('submissions').select('*').order('created_at', { ascending: false }),
+        supabase.from('messages').select('*').order('created_at', { ascending: false })
+      ]);
+      
+      if (stRes.error) throw stRes.error;
+      if (subRes.error) throw subRes.error;
+      if (msgRes.error) throw msgRes.error;
+
+      setStudents(stRes.data || []);
+      setSubmissions(subRes.data || []);
+      setMessages(msgRes.data || []);
+    } catch (e: any) {
+      console.error("Erro ao buscar dados:", e);
+      alert("Erro ao carregar dados do banco. Verifique sua conexão.");
     } finally {
       setLoading(false);
     }
   };
 
   const deleteSubmission = async (id: string) => {
-    if (confirm("Excluir esta atividade permanentemente?")) {
+    if (!confirm("Tem certeza que deseja apagar esta atividade permanentemente?")) return;
+    
+    // Otimismo: remove da tela antes mesmo de confirmar no banco
+    const originalSubmissions = [...submissions];
+    setSubmissions(prev => prev.filter(s => s.id !== id));
+
+    try {
       const { error } = await supabase.from('submissions').delete().eq('id', id);
-      if (error) alert("Erro ao excluir: " + error.message);
-      else fetchData();
+      if (error) throw error;
+    } catch (e: any) {
+      setSubmissions(originalSubmissions); // Reverte se der erro
+      alert("Erro ao excluir no servidor: " + e.message);
     }
   };
 
   const sendFeedback = async (id: string) => {
-    const feedback = prompt("Digite o feedback/retorno para o aluno:");
-    if (feedback !== null) {
-      const trimmedFeedback = feedback.trim();
-      if (trimmedFeedback === "") return;
-
-      const { error } = await supabase
-        .from('submissions')
-        .update({ teacher_feedback: trimmedFeedback })
-        .eq('id', id);
+    const feedback = prompt("Digite seu feedback pedagógico para o aluno:");
+    if (!feedback) return;
+    
+    try {
+      const { error } = await supabase.from('submissions').update({ teacher_feedback: feedback }).eq('id', id);
+      if (error) throw error;
       
-      if (error) {
-        alert("Erro ao enviar feedback no banco: " + error.message);
-      } else {
-        alert("Feedback enviado com sucesso!");
-        // Atualiza a lista local para refletir a mudança sem recarregar tudo
-        setSubmissions(prev => prev.map(s => s.id === id ? { ...s, teacher_feedback: trimmedFeedback } : s));
+      // Atualiza localmente
+      setSubmissions(prev => prev.map(s => s.id === id ? { ...s, teacher_feedback: feedback } : s));
+      alert("Feedback salvo!");
+    } catch (e: any) {
+      alert("Erro ao salvar feedback: " + e.message);
+    }
+  };
+
+  const handleSendReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyText.trim() || !activeChatStudentId) return;
+
+    setSendingReply(true);
+    const student = students.find(s => s.id === activeChatStudentId);
+    try {
+      const { error } = await supabase.from('messages').insert([{
+        sender_id: activeChatStudentId,
+        sender_name: student?.name || 'Sistema',
+        school_class: student?.school_class || 'N/A',
+        grade: student?.grade || 'N/A',
+        content: replyText.trim(),
+        is_from_teacher: true
+      }]);
+      if (error) throw error;
+      setReplyText('');
+      fetchData(); 
+    } catch (err: any) {
+      alert("Erro ao enviar: " + err.message);
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  const filteredSubmissions = useMemo(() => {
+    return submissions.filter(sub => {
+      const gradeMatch = filterGrade === 'all' || sub.school_class.startsWith(filterGrade);
+      const classMatch = filterClass === 'all' || sub.school_class === filterClass;
+      return gradeMatch && classMatch;
+    });
+  }, [submissions, filterGrade, filterClass]);
+
+  const filteredPhotos = useMemo(() => {
+    return students.filter(s => {
+      const gradeMatch = filterGrade === 'all' || s.grade === filterGrade;
+      const classMatch = filterClass === 'all' || s.school_class === filterClass;
+      return gradeMatch && classMatch;
+    });
+  }, [students, filterGrade, filterClass]);
+
+  const chatGroups = useMemo(() => {
+    const groups: Record<string, any> = {};
+    messages.forEach(m => {
+      if (!groups[m.sender_id]) {
+        groups[m.sender_id] = {
+          studentId: m.sender_id,
+          studentName: m.sender_name,
+          schoolClass: m.school_class,
+          lastMessage: m.content,
+          unread: !m.is_read && !m.is_from_teacher
+        };
       }
-    }
-  };
-
-  const deleteStudent = async (id: string) => {
-    if (confirm("Excluir este aluno e todas as suas atividades?")) {
-      await supabase.from('students').delete().eq('id', id);
-      fetchData();
-    }
-  };
-
-  const filteredSubmissions = submissions.filter(s => {
-    const sClass = s.school_class || "";
-    const gradeMatch = filterGrade === 'all' || sClass.startsWith(filterGrade);
-    const classMatch = filterClass === 'all' || sClass === filterClass;
-    return gradeMatch && classMatch;
-  });
-
-  const filteredStudents = students.filter(s => {
-    const sGrade = String(s.grade || "");
-    const sClass = s.school_class || "";
-    const gradeMatch = filterGrade === 'all' || sGrade === filterGrade;
-    const classMatch = filterClass === 'all' || sClass === filterClass;
-    return gradeMatch && classMatch;
-  });
+    });
+    return Object.values(groups).filter(g => filterGrade === 'all' || g.schoolClass.startsWith(filterGrade));
+  }, [messages, filterGrade]);
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4 font-sans">
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
         <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full">
-          <h2 className="text-xl font-bold mb-4">Painel do Professor</h2>
-          <input 
-            type="password" 
-            placeholder="Senha de Acesso" 
-            className="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 focus:ring-slate-400" 
-            value={pass} 
-            onChange={e => setPass(e.target.value)} 
-            onKeyDown={e => e.key === 'Enter' && checkAdmin()}
-          />
-          <button onClick={checkAdmin} className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold hover:bg-black transition">Entrar</button>
-          <Link to="/" className="block text-center mt-6 text-slate-500 text-sm hover:underline">Voltar para o Portal</Link>
+          <h2 className="text-xl font-bold mb-4 text-center">Painel do Professor</h2>
+          <input type="password" placeholder="Chave Mestra" className="w-full p-4 border rounded-xl mb-4 outline-none focus:ring-2 focus:ring-tocantins-blue" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && checkAdmin()} />
+          <button onClick={checkAdmin} className="w-full bg-tocantins-blue text-white p-4 rounded-xl font-bold hover:bg-blue-800 transition">Acessar Sistema</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans">
-      <aside className="w-64 bg-slate-900 text-white p-6 hidden md:flex flex-col">
-        <h2 className="text-xl font-bold mb-8 flex items-center gap-2">
-          <Key className="text-tocantins-yellow" size={20} /> Professor
-        </h2>
-        <nav className="space-y-2">
-          <button onClick={() => setTab('submissions')} className={`w-full flex items-center gap-3 p-3 rounded-xl transition ${tab === 'submissions' ? 'bg-tocantins-blue text-white' : 'text-slate-400 hover:bg-white/10'}`}>
-            <BookOpen size={20} /> Atividades
-          </button>
-          <button onClick={() => setTab('students')} className={`w-full flex items-center gap-3 p-3 rounded-xl transition ${tab === 'students' ? 'bg-tocantins-blue text-white' : 'text-slate-400 hover:bg-white/10'}`}>
-            <Users size={20} /> Estudantes
-          </button>
-          <button onClick={() => setTab('photos')} className={`w-full flex items-center gap-3 p-3 rounded-xl transition ${tab === 'photos' ? 'bg-tocantins-blue text-white' : 'text-slate-400 hover:bg-white/10'}`}>
-            <UserSquare2 size={20} /> Carômetro
-          </button>
+    <div className="min-h-screen bg-slate-100 flex font-sans">
+      <aside className="w-64 bg-slate-900 text-white p-6 hidden md:flex flex-col shrink-0 sticky top-0 h-screen">
+        <div className="mb-8 text-center">
+          <div className="w-12 h-12 bg-tocantins-blue rounded-xl flex items-center justify-center mx-auto mb-2"><Key size={24}/></div>
+          <h2 className="font-bold">Portal Admin</h2>
+        </div>
+        <nav className="space-y-1 flex-1">
+          <button onClick={() => setTab('submissions')} className={`w-full flex items-center gap-3 p-3 rounded-lg text-sm transition ${tab === 'submissions' ? 'bg-tocantins-blue' : 'text-slate-400 hover:bg-white/5'}`}><BookOpen size={18}/> Atividades</button>
+          <button onClick={() => setTab('messages')} className={`w-full flex items-center gap-3 p-3 rounded-lg text-sm transition ${tab === 'messages' ? 'bg-tocantins-blue' : 'text-slate-400 hover:bg-white/5'}`}><MessageSquare size={18}/> Mensagens</button>
+          <button onClick={() => setTab('students')} className={`w-full flex items-center gap-3 p-3 rounded-lg text-sm transition ${tab === 'students' ? 'bg-tocantins-blue' : 'text-slate-400 hover:bg-white/5'}`}><Users size={18}/> Estudantes</button>
+          <button onClick={() => setTab('photos')} className={`w-full flex items-center gap-3 p-3 rounded-lg text-sm transition ${tab === 'photos' ? 'bg-tocantins-blue' : 'text-slate-400 hover:bg-white/5'}`}><UserSquare2 size={18}/> Carômetro</button>
         </nav>
-        <button onClick={fetchData} className="mt-8 w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition">
-           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} /> Atualizar
-        </button>
-        <div className="mt-auto pt-8 border-t border-white/10">
-           <Link to="/" className="w-full flex items-center gap-3 p-3 rounded-xl text-slate-400 hover:text-white transition">
-              <Home size={20} /> Início do Portal
-           </Link>
+        <div className="pt-4 border-t border-white/10 space-y-2">
+          <button onClick={fetchData} className="w-full flex items-center justify-center gap-2 p-2 text-xs text-slate-500 hover:text-white transition"><RefreshCw size={14} className={loading ? 'animate-spin' : ''}/> Sincronizar</button>
+          <Link to="/" className="w-full flex items-center justify-center gap-2 p-2 text-xs text-slate-500 hover:text-white transition"><Home size={14}/> Sair</Link>
         </div>
       </aside>
 
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto max-h-screen">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-800">
-              {tab === 'submissions' ? 'Gerenciar Atividades' : tab === 'students' ? 'Gerenciar Alunos' : 'Fotos da Turma'}
-            </h1>
-          </div>
-          <div className="flex gap-2 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
-            <select className="bg-transparent text-sm font-bold p-1 outline-none" value={filterGrade} onChange={e => setFilterGrade(e.target.value)}>
-              <option value="all">Série</option>
-              <option value="1">1ª Série</option>
-              <option value="2">2ª Série</option>
-              <option value="3">3ª Série</option>
+      <main className="flex-1 p-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-2xl font-bold text-slate-800 capitalize">{tab}</h1>
+          <div className="flex gap-2">
+            <select className="p-2 border rounded-lg text-xs font-bold" value={filterGrade} onChange={e => setFilterGrade(e.target.value)}>
+              <option value="all">Série</option><option value="1">1ª</option><option value="2">2ª</option><option value="3">3ª</option>
             </select>
-            <select className="bg-transparent text-sm font-bold p-1 outline-none" value={filterClass} onChange={e => setFilterClass(e.target.value)}>
+            <select className="p-2 border rounded-lg text-xs font-bold" value={filterClass} onChange={e => setFilterClass(e.target.value)}>
               <option value="all">Turma</option>
-              {filterGrade !== 'all' && (
-                filterGrade === '1' ? Array.from({length:6},(_,i)=>`13.0${i+1}`).map(c=><option key={c} value={c}>{c}</option>) :
-                filterGrade === '2' ? Array.from({length:8},(_,i)=>`23.0${i+1}`).map(c=><option key={c} value={c}>{c}</option>) :
-                Array.from({length:9},(_,i)=>`33.0${i+1}`).map(c=><option key={c} value={c}>{c}</option>)
-              )}
+              {Array.from(new Set(students.map(s => s.school_class))).sort().map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
         </div>
 
-        {tab === 'submissions' && (
-          <div className="grid gap-6">
-            {filteredSubmissions.length === 0 ? (
-              <div className="text-center py-20 text-slate-400">Nenhuma atividade encontrada para os filtros selecionados.</div>
-            ) : filteredSubmissions.map(sub => (
-              <div key={sub.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-800">{sub.student_name}</h3>
-                    <p className="text-xs text-slate-500 font-bold uppercase">{sub.school_class} • {sub.lesson_title}</p>
-                    <p className="text-[10px] text-slate-400 mt-1">Enviado em: {new Date(sub.created_at).toLocaleString('pt-BR')}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => sendFeedback(sub.id)} className="flex items-center gap-1 bg-slate-100 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold transition">
-                      <MessageSquare size={14} /> {sub.teacher_feedback ? 'Editar Feedback' : 'Dar Feedback'}
-                    </button>
-                    <button onClick={() => deleteSubmission(sub.id)} className="bg-slate-100 hover:bg-red-100 text-red-600 p-2 rounded-lg transition">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
+        {loading && <div className="flex justify-center p-20"><Loader2 className="animate-spin text-tocantins-blue" size={40}/></div>}
 
-                <div className="grid md:grid-cols-2 gap-4 mt-6">
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Respostas do Aluno</h4>
-                    {Array.isArray(sub.content) && sub.content.map((item: any, i: number) => (
-                      <div key={i} className="bg-slate-50 p-3 rounded-lg text-sm border border-slate-100">
-                        <p className="font-bold text-slate-700 italic">Q: {item.question}</p>
-                        <p className="text-slate-600 mt-1">{item.answer}</p>
-                      </div>
-                    ))}
+        {!loading && tab === 'submissions' && (
+          <div className="grid gap-4">
+            {filteredSubmissions.length === 0 && <p className="text-center py-20 text-slate-400">Nenhuma atividade encontrada.</p>}
+            {filteredSubmissions.map(sub => (
+              <div key={sub.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-bold text-slate-800">{sub.student_name}</h3>
+                    <p className="text-[10px] text-tocantins-blue font-black">{sub.school_class} • {sub.lesson_title}</p>
                   </div>
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Avaliação da App</h4>
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-bold text-blue-800">Nota IA</span>
-                        <span className="text-lg font-black text-blue-900">{sub.score?.toFixed(1) || '0.0'}</span>
-                      </div>
-                      <p className="text-xs text-blue-700 leading-relaxed italic line-clamp-4">
-                        {sub.ai_feedback?.generalComment || 'Sem feedback da IA disponível.'}
-                      </p>
-                    </div>
-                    {sub.teacher_feedback && (
-                      <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-                        <span className="text-xs font-bold text-green-800 block mb-1">Seu Feedback (Visível ao Aluno):</span>
-                        <p className="text-sm text-green-900 font-medium">{sub.teacher_feedback}</p>
-                      </div>
-                    )}
+                  <div className="flex gap-1">
+                    <button onClick={() => sendFeedback(sub.id)} className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition">FEEDBACK</button>
+                    <button onClick={() => deleteSubmission(sub.id)} className="bg-red-50 text-red-500 p-1.5 rounded-lg hover:bg-red-100 transition"><Trash2 size={16}/></button>
                   </div>
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {sub.content?.map((c: any, i: number) => (
+                    <div key={i} className="p-3 bg-slate-50 rounded-xl text-xs border border-slate-100">
+                      <p className="text-slate-400 mb-1 font-bold">P: {c.question}</p>
+                      <p className="text-slate-700">R: {c.answer}</p>
+                    </div>
+                  ))}
+                </div>
+                {sub.teacher_feedback && (
+                  <div className="p-3 bg-green-50 rounded-xl border border-green-100 text-[11px] text-green-700 italic">
+                    <b>Seu Retorno:</b> "{sub.teacher_feedback}"
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
 
-        {tab === 'students' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-             <table className="w-full text-left">
+        {!loading && tab === 'photos' && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+            {filteredPhotos.length === 0 && <p className="col-span-full text-center py-20 text-slate-400 italic">Nenhum aluno nesta turma.</p>}
+            {filteredPhotos.map(st => (
+              <div key={st.id} className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 text-center hover:-translate-y-1 transition group">
+                <img src={st.photo_url} className="w-full aspect-square object-cover rounded-xl mb-3 grayscale group-hover:grayscale-0 transition duration-500" />
+                <p className="text-xs font-bold text-slate-700 truncate">{st.name}</p>
+                <p className="text-[10px] text-slate-400">{st.school_class}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!loading && tab === 'messages' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[70vh] bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="border-r overflow-y-auto">
+              {chatGroups.map(g => (
+                <button key={g.studentId} onClick={() => setActiveChatStudentId(g.studentId)} className={`w-full text-left p-4 border-b hover:bg-slate-50 transition ${activeChatStudentId === g.studentId ? 'bg-blue-50 border-l-4 border-tocantins-blue' : ''}`}>
+                  <p className="font-bold text-sm text-slate-800">{g.studentName}</p>
+                  <p className="text-[10px] text-tocantins-blue font-bold">{g.schoolClass}</p>
+                  <p className="text-xs text-slate-400 truncate mt-1">{g.lastMessage}</p>
+                </button>
+              ))}
+            </div>
+            <div className="lg:col-span-2 flex flex-col bg-slate-50/30">
+              {activeChatStudentId ? (
+                <>
+                  <div className="flex-1 p-6 overflow-y-auto space-y-4">
+                    {messages.filter(m => m.sender_id === activeChatStudentId).sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).map(msg => (
+                      <div key={msg.id} className={`flex ${msg.is_from_teacher ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] p-3 rounded-2xl text-sm shadow-sm ${msg.is_from_teacher ? 'bg-tocantins-blue text-white rounded-tr-none' : 'bg-white border text-slate-700 rounded-tl-none'}`}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <form onSubmit={handleSendReply} className="p-4 bg-white border-t flex gap-2">
+                    <input type="text" value={replyText} onChange={e => setReplyText(e.target.value)} placeholder="Responder..." className="flex-1 p-3 bg-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+                    <button disabled={sendingReply || !replyText.trim()} className="bg-tocantins-blue text-white p-3 rounded-xl transition disabled:opacity-50"><Send size={20}/></button>
+                  </form>
+                </>
+              ) : <div className="flex-1 flex items-center justify-center text-slate-300">Escolha um aluno para conversar</div>}
+            </div>
+          </div>
+        )}
+
+        {!loading && tab === 'students' && (
+           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+             <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 border-b">
-                  <tr>
-                    <th className="p-4 text-xs font-bold uppercase text-slate-500">Estudante</th>
-                    <th className="p-4 text-xs font-bold uppercase text-slate-500">Turma</th>
-                    <th className="p-4 text-xs font-bold uppercase text-slate-500 text-right">Ações</th>
-                  </tr>
+                  <tr><th className="p-4 font-bold text-slate-400 uppercase text-[10px]">Aluno</th><th className="p-4 font-bold text-slate-400 uppercase text-[10px]">Turma</th><th className="p-4 text-right font-bold text-slate-400 uppercase text-[10px]">Ação</th></tr>
                 </thead>
                 <tbody className="divide-y">
-                  {filteredStudents.map(st => (
-                    <tr key={st.id} className="hover:bg-slate-50 transition">
-                      <td className="p-4 flex items-center gap-3">
-                        <img src={st.photo_url} className="w-10 h-10 rounded-full object-cover border" alt="" />
-                        <span className="font-bold text-slate-700">{st.name}</span>
-                      </td>
-                      <td className="p-4 text-sm text-slate-600">{st.school_class}</td>
-                      <td className="p-4 text-right">
-                        <button onClick={() => deleteStudent(st.id)} className="p-2 text-slate-400 hover:text-red-600 transition"><Trash2 size={18} /></button>
-                      </td>
+                  {students.filter(s => filterGrade === 'all' || s.grade === filterGrade).map(st => (
+                    <tr key={st.id} className="hover:bg-slate-50">
+                      <td className="p-4 flex items-center gap-2 font-bold"><img src={st.photo_url} className="w-8 h-8 rounded-full object-cover border" /> {st.name}</td>
+                      <td className="p-4">{st.school_class}</td>
+                      <td className="p-4 text-right"><button onClick={async () => { if(confirm("Apagar?")) { await supabase.from('students').delete().eq('id', st.id); fetchData(); } }} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button></td>
                     </tr>
                   ))}
                 </tbody>
              </table>
-          </div>
-        )}
-
-        {tab === 'photos' && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
-            {filteredStudents.map(st => (
-              <div key={st.id} className="text-center group">
-                <div className="relative overflow-hidden rounded-xl border shadow-sm mb-2 aspect-square">
-                  <img src={st.photo_url} className="w-full h-full object-cover group-hover:scale-110 transition duration-300" alt="" />
-                </div>
-                <p className="text-xs font-bold text-slate-700 line-clamp-1">{st.name.split(' ')[0]}</p>
-                <p className="text-[10px] text-tocantins-blue font-bold">{st.school_class}</p>
-              </div>
-            ))}
-          </div>
+           </div>
         )}
       </main>
     </div>
