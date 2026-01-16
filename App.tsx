@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { Header } from './components/Header';
@@ -5,7 +6,9 @@ import { Home } from './screens/Home';
 import { GradeView } from './screens/GradeView';
 import { LessonView } from './screens/LessonView';
 import { Contact } from './screens/Contact';
-import { Mail } from 'lucide-react';
+import { AdminDashboard } from './screens/AdminDashboard';
+import { Login } from './screens/Login';
+import { Mail, Lock } from 'lucide-react';
 
 function App() {
   return (
@@ -15,9 +18,11 @@ function App() {
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/grade/:id" element={<GradeView />} />
             <Route path="/lesson/:lessonId" element={<LessonView />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
         </main>
         <footer className="bg-slate-900 text-slate-400 py-8 text-center text-sm">
@@ -25,13 +30,20 @@ function App() {
             <p className="mb-1">© 2026 Filosofia no Ensino Médio - Tocantins</p>
             <p className="mb-4">Desenvolvido por: Prof. Me. Divino Ribeiro Viana</p>
             
-            <div className="flex justify-center">
+            <div className="flex justify-center gap-4">
               <Link 
                 to="/contact" 
                 className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 rounded-full text-tocantins-yellow hover:bg-slate-700 hover:text-yellow-300 transition-colors"
               >
                 <Mail className="w-4 h-4" />
-                Entre em contato com o Professor
+                Contato
+              </Link>
+              <Link 
+                to="/admin" 
+                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 rounded-full text-white hover:bg-slate-700 transition-colors"
+              >
+                <Lock className="w-4 h-4" />
+                Painel Admin
               </Link>
             </div>
           </div>
