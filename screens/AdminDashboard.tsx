@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Users, BookOpen, Trash2, Key, UserSquare2, Home, RefreshCw, MessageSquare, Send, Loader2, ArrowLeft, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Users, BookOpen, Trash2, Key, UserSquare2, Home, RefreshCw, MessageSquare, Send, Loader2, ArrowLeft, CheckCircle, AlertTriangle, FileText, Save, X } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -14,6 +14,11 @@ export const AdminDashboard: React.FC = () => {
   const [tab, setTab] = useState<'students' | 'submissions' | 'photos' | 'messages'>('submissions');
   const [filterGrade, setFilterGrade] = useState('all');
   const [filterClass, setFilterClass] = useState('all');
+
+  // Estados para Observações do Aluno
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [studentNote, setStudentNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
   const [activeChatStudentId, setActiveChatStudentId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
@@ -52,18 +57,36 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleSaveStudentNote = async () => {
+    if (!selectedStudent) return;
+    setSavingNote(true);
+    try {
+      const { error } = await supabase
+        .from('students')
+        .update({ teacher_notes: studentNote })
+        .eq('id', selectedStudent.id);
+
+      if (error) throw error;
+      
+      setStudents(prev => prev.map(s => s.id === selectedStudent.id ? { ...s, teacher_notes: studentNote } : s));
+      alert("Observação salva com sucesso!");
+      setSelectedStudent(null);
+    } catch (e: any) {
+      alert("Erro ao salvar observação: " + e.message);
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
   const deleteSubmission = async (id: string) => {
     if (!confirm("Tem certeza que deseja apagar esta atividade permanentemente?")) return;
-    
-    // Otimismo: remove da tela antes mesmo de confirmar no banco
     const originalSubmissions = [...submissions];
     setSubmissions(prev => prev.filter(s => s.id !== id));
-
     try {
       const { error } = await supabase.from('submissions').delete().eq('id', id);
       if (error) throw error;
     } catch (e: any) {
-      setSubmissions(originalSubmissions); // Reverte se der erro
+      setSubmissions(originalSubmissions);
       alert("Erro ao excluir no servidor: " + e.message);
     }
   };
@@ -71,12 +94,9 @@ export const AdminDashboard: React.FC = () => {
   const sendFeedback = async (id: string) => {
     const feedback = prompt("Digite seu feedback pedagógico para o aluno:");
     if (!feedback) return;
-    
     try {
       const { error } = await supabase.from('submissions').update({ teacher_feedback: feedback }).eq('id', id);
       if (error) throw error;
-      
-      // Atualiza localmente
       setSubmissions(prev => prev.map(s => s.id === id ? { ...s, teacher_feedback: feedback } : s));
       alert("Feedback salvo!");
     } catch (e: any) {
@@ -87,7 +107,6 @@ export const AdminDashboard: React.FC = () => {
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyText.trim() || !activeChatStudentId) return;
-
     setSendingReply(true);
     const student = students.find(s => s.id === activeChatStudentId);
     try {
@@ -155,6 +174,43 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans">
+      {/* Modal de Observações do Aluno */}
+      {selectedStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300">
+            <div className="bg-slate-900 p-6 text-white flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <img src={selectedStudent.photo_url} className="w-12 h-12 rounded-full border-2 border-tocantins-yellow object-cover" />
+                <div>
+                  <h3 className="font-bold">{selectedStudent.name}</h3>
+                  <p className="text-xs text-slate-400">{selectedStudent.school_class} • {selectedStudent.grade}ª Série</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedStudent(null)} className="p-2 hover:bg-white/10 rounded-full transition"><X size={20}/></button>
+            </div>
+            <div className="p-6">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Observações Privadas do Professor</label>
+              <textarea 
+                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-tocantins-blue outline-none transition min-h-[150px]"
+                placeholder="Ex: Aluno participativo, apresenta dificuldades em lógica, etc..."
+                value={studentNote}
+                onChange={(e) => setStudentNote(e.target.value)}
+              />
+              <div className="mt-6 flex gap-2">
+                <button 
+                  onClick={handleSaveStudentNote}
+                  disabled={savingNote}
+                  className="flex-1 bg-tocantins-blue hover:bg-blue-800 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition disabled:opacity-50"
+                >
+                  {savingNote ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>}
+                  Salvar Observações
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <aside className="w-64 bg-slate-900 text-white p-6 hidden md:flex flex-col shrink-0 sticky top-0 h-screen">
         <div className="mb-8 text-center">
           <div className="w-12 h-12 bg-tocantins-blue rounded-xl flex items-center justify-center mx-auto mb-2"><Key size={24}/></div>
@@ -225,11 +281,23 @@ export const AdminDashboard: React.FC = () => {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
             {filteredPhotos.length === 0 && <p className="col-span-full text-center py-20 text-slate-400 italic">Nenhum aluno nesta turma.</p>}
             {filteredPhotos.map(st => (
-              <div key={st.id} className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 text-center hover:-translate-y-1 transition group">
+              <button 
+                key={st.id} 
+                onClick={() => {
+                  setSelectedStudent(st);
+                  setStudentNote(st.teacher_notes || '');
+                }}
+                className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 text-center hover:-translate-y-1 transition group relative overflow-hidden"
+              >
                 <img src={st.photo_url} className="w-full aspect-square object-cover rounded-xl mb-3 grayscale group-hover:grayscale-0 transition duration-500" />
                 <p className="text-xs font-bold text-slate-700 truncate">{st.name}</p>
                 <p className="text-[10px] text-slate-400">{st.school_class}</p>
-              </div>
+                {st.teacher_notes && (
+                  <div className="absolute top-2 right-2 p-1 bg-tocantins-blue text-white rounded-full shadow-md animate-pulse">
+                    <FileText size={10} />
+                  </div>
+                )}
+              </button>
             ))}
           </div>
         )}
@@ -276,7 +344,11 @@ export const AdminDashboard: React.FC = () => {
                 <tbody className="divide-y">
                   {students.filter(s => filterGrade === 'all' || s.grade === filterGrade).map(st => (
                     <tr key={st.id} className="hover:bg-slate-50">
-                      <td className="p-4 flex items-center gap-2 font-bold"><img src={st.photo_url} className="w-8 h-8 rounded-full object-cover border" /> {st.name}</td>
+                      <td className="p-4 flex items-center gap-2 font-bold">
+                        <img src={st.photo_url} className="w-8 h-8 rounded-full object-cover border" /> 
+                        {st.name}
+                        {st.teacher_notes && <FileText size={12} className="text-tocantins-blue" />}
+                      </td>
                       <td className="p-4">{st.school_class}</td>
                       <td className="p-4 text-right"><button onClick={async () => { if(confirm("Apagar?")) { await supabase.from('students').delete().eq('id', st.id); fetchData(); } }} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button></td>
                     </tr>
