@@ -13,6 +13,12 @@ export const LessonView: React.FC = () => {
   const navigate = useNavigate();
   const [student, setStudent] = useState<any>(null);
 
+  // Estados principais
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiData, setAiData] = useState<AIResponse | null>(null);
+
   useEffect(() => {
     const saved = localStorage.getItem('student');
     if (!saved) {
@@ -22,6 +28,13 @@ export const LessonView: React.FC = () => {
       setStudent(data);
     }
   }, [navigate]);
+
+  // Reset de estado quando a aula muda (ex: vindo do botão "Refazer")
+  useEffect(() => {
+    setAnswers({});
+    setAiData(null);
+    setIsAIModalOpen(false);
+  }, [lessonId]);
 
   const getTodayString = () => {
     const d = new Date();
@@ -44,11 +57,6 @@ export const LessonView: React.FC = () => {
     }
     if (foundLesson) break;
   }
-
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiData, setAiData] = useState<AIResponse | null>(null);
 
   if (!foundLesson) return <div className="p-8 text-center">Aula não encontrada.</div>;
 

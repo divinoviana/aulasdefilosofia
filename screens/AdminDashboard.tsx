@@ -39,23 +39,29 @@ export const AdminDashboard: React.FC = () => {
 
   const deleteSubmission = async (id: string) => {
     if (confirm("Excluir esta atividade permanentemente?")) {
-      await supabase.from('submissions').delete().eq('id', id);
-      fetchData();
+      const { error } = await supabase.from('submissions').delete().eq('id', id);
+      if (error) alert("Erro ao excluir: " + error.message);
+      else fetchData();
     }
   };
 
   const sendFeedback = async (id: string) => {
     const feedback = prompt("Digite o feedback/retorno para o aluno:");
     if (feedback !== null) {
+      const trimmedFeedback = feedback.trim();
+      if (trimmedFeedback === "") return;
+
       const { error } = await supabase
         .from('submissions')
-        .update({ teacher_feedback: feedback })
+        .update({ teacher_feedback: trimmedFeedback })
         .eq('id', id);
       
-      if (error) alert("Erro ao enviar feedback");
-      else {
+      if (error) {
+        alert("Erro ao enviar feedback no banco: " + error.message);
+      } else {
         alert("Feedback enviado com sucesso!");
-        fetchData();
+        // Atualiza a lista local para refletir a mudança sem recarregar tudo
+        setSubmissions(prev => prev.map(s => s.id === id ? { ...s, teacher_feedback: trimmedFeedback } : s));
       }
     }
   };
@@ -156,16 +162,19 @@ export const AdminDashboard: React.FC = () => {
 
         {tab === 'submissions' && (
           <div className="grid gap-6">
-            {filteredSubmissions.map(sub => (
+            {filteredSubmissions.length === 0 ? (
+              <div className="text-center py-20 text-slate-400">Nenhuma atividade encontrada para os filtros selecionados.</div>
+            ) : filteredSubmissions.map(sub => (
               <div key={sub.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="text-lg font-bold text-slate-800">{sub.student_name}</h3>
                     <p className="text-xs text-slate-500 font-bold uppercase">{sub.school_class} • {sub.lesson_title}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Enviado em: {new Date(sub.created_at).toLocaleString('pt-BR')}</p>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => sendFeedback(sub.id)} className="flex items-center gap-1 bg-slate-100 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold transition">
-                      <MessageSquare size={14} /> Feedback
+                      <MessageSquare size={14} /> {sub.teacher_feedback ? 'Editar Feedback' : 'Dar Feedback'}
                     </button>
                     <button onClick={() => deleteSubmission(sub.id)} className="bg-slate-100 hover:bg-red-100 text-red-600 p-2 rounded-lg transition">
                       <Trash2 size={16} />
@@ -175,29 +184,29 @@ export const AdminDashboard: React.FC = () => {
 
                 <div className="grid md:grid-cols-2 gap-4 mt-6">
                   <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Respostas</h4>
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Respostas do Aluno</h4>
                     {Array.isArray(sub.content) && sub.content.map((item: any, i: number) => (
-                      <div key={i} className="bg-slate-50 p-3 rounded-lg text-sm">
+                      <div key={i} className="bg-slate-50 p-3 rounded-lg text-sm border border-slate-100">
                         <p className="font-bold text-slate-700 italic">Q: {item.question}</p>
                         <p className="text-slate-600 mt-1">{item.answer}</p>
                       </div>
                     ))}
                   </div>
                   <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Avaliação</h4>
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Avaliação da App</h4>
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-bold text-blue-800">Média da IA</span>
+                        <span className="text-sm font-bold text-blue-800">Nota IA</span>
                         <span className="text-lg font-black text-blue-900">{sub.score?.toFixed(1) || '0.0'}</span>
                       </div>
-                      <p className="text-xs text-blue-700 leading-relaxed italic line-clamp-3">
-                        {sub.ai_feedback?.generalComment || 'Sem feedback da IA.'}
+                      <p className="text-xs text-blue-700 leading-relaxed italic line-clamp-4">
+                        {sub.ai_feedback?.generalComment || 'Sem feedback da IA disponível.'}
                       </p>
                     </div>
                     {sub.teacher_feedback && (
                       <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-                        <span className="text-xs font-bold text-green-800 block mb-1">Seu Retorno:</span>
-                        <p className="text-sm text-green-900">{sub.teacher_feedback}</p>
+                        <span className="text-xs font-bold text-green-800 block mb-1">Seu Feedback (Visível ao Aluno):</span>
+                        <p className="text-sm text-green-900 font-medium">{sub.teacher_feedback}</p>
                       </div>
                     )}
                   </div>
@@ -221,7 +230,7 @@ export const AdminDashboard: React.FC = () => {
                   {filteredStudents.map(st => (
                     <tr key={st.id} className="hover:bg-slate-50 transition">
                       <td className="p-4 flex items-center gap-3">
-                        <img src={st.photo_url} className="w-10 h-10 rounded-full object-cover border" />
+                        <img src={st.photo_url} className="w-10 h-10 rounded-full object-cover border" alt="" />
                         <span className="font-bold text-slate-700">{st.name}</span>
                       </td>
                       <td className="p-4 text-sm text-slate-600">{st.school_class}</td>
@@ -238,8 +247,10 @@ export const AdminDashboard: React.FC = () => {
         {tab === 'photos' && (
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
             {filteredStudents.map(st => (
-              <div key={st.id} className="text-center">
-                <img src={st.photo_url} className="w-full aspect-square object-cover rounded-xl border shadow-sm mb-2" />
+              <div key={st.id} className="text-center group">
+                <div className="relative overflow-hidden rounded-xl border shadow-sm mb-2 aspect-square">
+                  <img src={st.photo_url} className="w-full h-full object-cover group-hover:scale-110 transition duration-300" alt="" />
+                </div>
                 <p className="text-xs font-bold text-slate-700 line-clamp-1">{st.name.split(' ')[0]}</p>
                 <p className="text-[10px] text-tocantins-blue font-bold">{st.school_class}</p>
               </div>

@@ -1,8 +1,9 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, BookCheck, Star, MessageSquare, Clock, Camera, Upload, Check, X, User } from 'lucide-react';
+import { curriculumData } from '../data';
+import { ArrowLeft, BookCheck, Star, MessageSquare, Clock, Camera, Upload, Check, X, User, RotateCcw } from 'lucide-react';
 
 export const MyActivities: React.FC = () => {
   const navigate = useNavigate();
@@ -121,6 +122,33 @@ export const MyActivities: React.FC = () => {
     }
   };
 
+  const handleRedo = (lessonTitle: string) => {
+    let lessonIdFound = "";
+    
+    // Normalização para comparação: remove "Aula X: " e espaços extras
+    const normalize = (s: string) => s.toLowerCase().replace(/aula\s+\d+:\s*/i, '').trim();
+    const targetNormalized = normalize(lessonTitle);
+
+    curriculumData.forEach(grade => {
+      grade.bimesters.forEach(bimester => {
+        const lesson = bimester.lessons.find(l => 
+          normalize(l.title) === targetNormalized
+        );
+        if (lesson) {
+          lessonIdFound = lesson.id;
+        }
+      });
+    });
+
+    if (lessonIdFound) {
+      if (confirm(`Deseja refazer a atividade: "${lessonTitle}"? Isso abrirá a aula novamente para um novo envio.`)) {
+        navigate(`/lesson/${lessonIdFound}`);
+      }
+    } else {
+      alert("Não foi possível localizar o conteúdo original desta aula. Por favor, tente acessá-la pela página inicial.");
+    }
+  };
+
   if (!student) return null;
 
   return (
@@ -225,34 +253,48 @@ export const MyActivities: React.FC = () => {
         ) : (
           <div className="space-y-6">
             {submissions.map(sub => (
-              <div key={sub.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <div key={sub.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:border-tocantins-blue transition-colors group">
                 <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-800">{sub.lesson_title}</h3>
+                    <h3 className="text-lg font-bold text-slate-800 group-hover:text-tocantins-blue transition-colors">{sub.lesson_title}</h3>
                     <p className="text-xs text-slate-400 font-bold uppercase mt-1">
                       Entregue em: {new Date(sub.created_at).toLocaleString('pt-BR')}
                     </p>
                   </div>
-                  <div className="bg-blue-50 px-4 py-2 rounded-xl text-center min-w-[100px]">
-                    <p className="text-[10px] text-blue-600 font-bold uppercase mb-1">Nota IA</p>
-                    <p className="text-xl font-black text-blue-900">{sub.score?.toFixed(1) || '0.0'}</p>
+                  <div className="flex items-center gap-4">
+                    {sub.teacher_feedback && (
+                      <button 
+                        onClick={() => handleRedo(sub.lesson_title)}
+                        className="flex items-center gap-2 bg-tocantins-yellow hover:bg-yellow-500 text-slate-900 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all hover:-translate-y-0.5"
+                        title="Refazer com base no feedback"
+                      >
+                        <RotateCcw size={16} /> Refazer Atividade
+                      </button>
+                    )}
+                    <div className="bg-blue-50 px-4 py-2 rounded-xl text-center min-w-[100px]">
+                      <p className="text-[10px] text-blue-600 font-bold uppercase mb-1">Nota IA</p>
+                      <p className="text-xl font-black text-blue-900">{sub.score?.toFixed(1) || '0.0'}</p>
+                    </div>
                   </div>
                 </div>
 
                 <div className="p-6 space-y-6">
                   {sub.teacher_feedback ? (
-                    <div className="bg-green-50 p-5 rounded-2xl border border-green-100 flex gap-4">
+                    <div className="bg-green-50 p-5 rounded-2xl border border-green-100 flex gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
                       <div className="p-2 bg-green-200 rounded-lg h-fit">
                         <MessageSquare className="text-green-700" size={20} />
                       </div>
                       <div>
-                        <h4 className="font-bold text-green-800 mb-1">Feedback do Professor</h4>
-                        <p className="text-green-900 text-sm leading-relaxed">{sub.teacher_feedback}</p>
+                        <div className="flex justify-between items-start mb-1">
+                          <h4 className="font-bold text-green-800">Feedback do Professor</h4>
+                          <span className="text-[10px] bg-green-200 text-green-800 px-2 py-0.5 rounded font-bold uppercase">Novo</span>
+                        </div>
+                        <p className="text-green-900 text-sm leading-relaxed font-medium">{sub.teacher_feedback}</p>
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-slate-500 text-sm italic">
-                      Aguardando feedback manual do professor.
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-slate-500 text-sm italic flex items-center gap-2">
+                      <Clock size={16} className="animate-pulse" /> Aguardando feedback manual do professor.
                     </div>
                   )}
 

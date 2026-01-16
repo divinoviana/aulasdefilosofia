@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Send, CheckCircle, Database, Loader2, AlertTriangle } from 'lucide-react';
 import { AIResponse, evaluateActivities } from '../services/aiService';
 import { supabase } from '../lib/supabase';
@@ -47,6 +47,11 @@ export const SubmissionBar: React.FC<Props> = ({
   const handleInternalSend = async () => {
     if (!validate()) return;
     
+    // Confirmação para refazer
+    if (dbStatus === 'saved') {
+      if (!confirm("Você já enviou esta atividade nesta sessão. Deseja enviar uma nova versão?")) return;
+    }
+
     setIsGenerating(true);
     setDbStatus('saving');
     
@@ -64,33 +69,30 @@ export const SubmissionBar: React.FC<Props> = ({
     }
 
     try {
-      // Garantimos que os nomes das colunas batem exatamente com o que o AdminDashboard espera ler
       const submissionPayload = {
         student_name: studentName.trim(),
         school_class: schoolClass.trim(),
         lesson_title: lessonTitle.trim(),
         submission_date: submissionDate || new Date().toISOString().split('T')[0],
-        content: submissionData, // Objeto JSON das respostas
+        content: submissionData, 
         ai_feedback: currentAIData,
         score: currentAIData ? currentAIData.corrections.reduce((acc, c) => acc + (Number(c.score) || 0), 0) / currentAIData.corrections.length : 0,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        teacher_feedback: null // Sempre inicia nulo para novas versões
       };
 
       const { error } = await supabase
         .from('submissions')
         .insert([submissionPayload]);
 
-      if (error) {
-        console.error("Erro Supabase:", error);
-        throw error;
-      }
+      if (error) throw error;
       
       setDbStatus('saved');
-      alert("Sucesso! Sua atividade foi entregue ao Professor Divino.");
+      alert("Sucesso! Sua atividade foi entregue. Se o professor já tinha dado feedback na versão anterior, ele verá esta nova versão agora.");
     } catch (error) {
-      console.error("Erro completo ao salvar:", error);
+      console.error("Erro ao salvar:", error);
       setDbStatus('error');
-      alert("Ocorreu um erro ao salvar no sistema. Suas respostas ainda estão na tela, tente enviar novamente.");
+      alert("Ocorreu um erro ao salvar no sistema. Verifique se as colunas 'teacher_feedback' foram criadas no Supabase.");
     } finally {
       setIsGenerating(false);
     }
@@ -123,9 +125,9 @@ export const SubmissionBar: React.FC<Props> = ({
 
           <button 
             onClick={handleInternalSend} 
-            disabled={isGenerating || dbStatus === 'saved'} 
-            className={`flex-grow md:flex-initial min-w-[200px] text-white font-bold py-4 px-8 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-95 disabled:opacity-50 ${
-              dbStatus === 'saved' ? 'bg-slate-400 cursor-not-allowed' : 'bg-tocantins-blue hover:bg-blue-800'
+            disabled={isGenerating} 
+            className={`flex-grow md:flex-initial min-w-[200px] text-white font-bold py-4 px-8 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-95 ${
+              dbStatus === 'saved' ? 'bg-green-600 hover:bg-green-700' : 'bg-tocantins-blue hover:bg-blue-800'
             }`}
           >
             {isGenerating ? (
@@ -137,7 +139,7 @@ export const SubmissionBar: React.FC<Props> = ({
             )}
             <span>
               {isGenerating ? 'Processando...' : 
-               dbStatus === 'saved' ? 'Enviado' : 'Finalizar e Enviar Atividade'}
+               dbStatus === 'saved' ? 'Enviar Novamente' : 'Finalizar e Enviar Atividade'}
             </span>
           </button>
           
