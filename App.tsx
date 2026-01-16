@@ -8,6 +8,7 @@ import { LessonView } from './screens/LessonView';
 import { Contact } from './screens/Contact';
 import { AdminDashboard } from './screens/AdminDashboard';
 import { Login } from './screens/Login';
+import { MyActivities } from './screens/MyActivities';
 import { Mail, Lock, Youtube, FileText } from 'lucide-react';
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
             <Route path="/lesson/:lessonId" element={<LessonView />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/my-activities" element={<MyActivities />} />
           </Routes>
         </main>
         <footer className="bg-slate-900 text-slate-400 py-12">

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BookOpen, LogOut, User } from 'lucide-react';
+import { BookOpen, LogOut, History } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 export const Header: React.FC = () => {
@@ -25,6 +25,13 @@ export const Header: React.FC = () => {
 
         {student && (
           <div className="flex items-center gap-4">
+            <Link 
+              to="/my-activities" 
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition text-sm font-bold"
+            >
+              <History size={16} />
+              <span className="hidden sm:inline">Minhas Atividades</span>
+            </Link>
             <div className="hidden md:flex flex-col items-end mr-2">
               <span className="text-xs font-bold text-white">{student.name}</span>
               <span className="text-[10px] text-slate-400">{student.school_class}</span>
