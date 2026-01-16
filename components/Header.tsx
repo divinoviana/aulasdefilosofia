@@ -1,8 +1,17 @@
+
 import React from 'react';
-import { BookOpen } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { BookOpen, LogOut, User } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 
 export const Header: React.FC = () => {
+  const navigate = useNavigate();
+  const student = JSON.parse(localStorage.getItem('student') || 'null');
+
+  const handleLogout = () => {
+    localStorage.removeItem('student');
+    navigate('/login');
+  };
+
   return (
     <header className="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -13,6 +22,23 @@ export const Header: React.FC = () => {
             <p className="text-xs text-slate-400">Tocantins</p>
           </div>
         </Link>
+
+        {student && (
+          <div className="flex items-center gap-4">
+            <div className="hidden md:flex flex-col items-end mr-2">
+              <span className="text-xs font-bold text-white">{student.name}</span>
+              <span className="text-[10px] text-slate-400">{student.school_class}</span>
+            </div>
+            <img src={student.photo_url} className="w-8 h-8 rounded-full border-2 border-tocantins-yellow object-cover" alt="User" />
+            <button 
+              onClick={handleLogout}
+              className="p-2 hover:bg-white/10 rounded-full transition text-slate-400 hover:text-white"
+              title="Sair"
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { curriculumData } from '../data';
 import { ActivityInput } from '../components/ActivityInput';
 import { SubmissionBar, SubmissionItem } from '../components/SubmissionBar';
-import { ArrowLeft, CheckCircle, PenTool, BrainCircuit, BookOpen, Lightbulb, User, Bot, Sparkles, Lock } from 'lucide-react';
+import { ArrowLeft, BookOpen, PenTool, Sparkles } from 'lucide-react';
 import { evaluateActivities, AIResponse } from '../services/aiService';
 import { AIFeedbackModal } from '../components/AIFeedbackModal';
 
@@ -20,8 +20,6 @@ export const LessonView: React.FC = () => {
     } else {
       const data = JSON.parse(saved);
       setStudent(data);
-      setStudentName(data.name);
-      setSchoolClass(data.school_class);
     }
   }, [navigate]);
 
@@ -34,35 +32,21 @@ export const LessonView: React.FC = () => {
   };
 
   let foundLesson = null;
-  let gradeTitle = "";
-  let gradeId = 0;
-  
   for (const g of curriculumData) {
     for (const b of g.bimesters) {
       const l = b.lessons.find(l => l.id === lessonId);
       if (l) {
         foundLesson = l;
-        gradeTitle = g.title;
-        gradeId = g.id;
         break;
       }
     }
     if (foundLesson) break;
   }
 
-  const [studentName, setStudentName] = useState('');
-  const [schoolClass, setSchoolClass] = useState('');
-  const [submissionDate, setSubmissionDate] = useState(getTodayString());
   const [answers, setAnswers] = useState<Record<string, string>>({});
-
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiData, setAiData] = useState<AIResponse | null>(null);
-
-  const lessonImage = useMemo(() => {
-    if (!foundLesson) return "";
-    return "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=1200&q=80";
-  }, [foundLesson]);
 
   if (!foundLesson) return <div className="p-8 text-center">Aula não encontrada.</div>;
 
@@ -87,19 +71,26 @@ export const LessonView: React.FC = () => {
 
   const handleAICorrection = async () => {
     const subData = getSubmissionData();
-    if (subData.length === 0) return;
+    if (subData.length === 0) {
+      alert("Por favor, responda as atividades antes de pedir uma análise da IA.");
+      return;
+    }
     setIsAIModalOpen(true);
     setAiLoading(true);
     try {
       const result = await evaluateActivities(foundLesson!.title, foundLesson!.theory, subData.map(d => ({question: d.question, answer: d.answer})));
       setAiData(result);
-    } catch (e) { alert("Erro na correção."); setIsAIModalOpen(false); }
+    } catch (e) { 
+      alert("Erro na correção da IA. Você pode enviar a atividade mesmo assim."); 
+      setIsAIModalOpen(false); 
+    }
     finally { setAiLoading(false); }
   };
 
   return (
     <div className="min-h-screen bg-slate-50 pb-32">
       <AIFeedbackModal isOpen={isAIModalOpen} isLoading={aiLoading} data={aiData} onClose={() => setIsAIModalOpen(false)} />
+      
       <div className="relative h-60 w-full overflow-hidden bg-slate-800">
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/30 to-slate-50"></div>
         <div className="relative z-10 container mx-auto px-4 h-full flex flex-col justify-center max-w-4xl">
@@ -122,7 +113,7 @@ export const LessonView: React.FC = () => {
             <h3 className="flex items-center text-2xl font-bold text-slate-800 mb-6 pb-4 border-b border-slate-100">
               <BookOpen className="w-7 h-7 mr-3 text-indigo-600" /> Teoria
             </h3>
-            <div className="bg-slate-50 p-6 rounded-2xl border-l-4 border-indigo-500 whitespace-pre-wrap text-slate-700">
+            <div className="bg-slate-50 p-6 rounded-2xl border-l-4 border-indigo-500 whitespace-pre-wrap text-slate-700 leading-relaxed">
               {foundLesson.theory}
             </div>
           </div>
@@ -134,7 +125,7 @@ export const LessonView: React.FC = () => {
             <div className="space-y-8">
               {foundLesson.activities.map((activity) => (
                 <div key={activity.id} className="p-6 bg-slate-50/50 rounded-xl border border-slate-200">
-                  <h4 className="font-bold mb-4">{activity.title}</h4>
+                  <h4 className="font-bold mb-4 text-slate-800 border-b pb-2">{activity.title}</h4>
                   {activity.questions?.map((q, idx) => (
                     <ActivityInput key={`${activity.id}-${idx}`} questionId={`${activity.id}-${idx}`} questionText={q} value={answers[`${activity.id}-${idx}`] || ''} onChange={(val) => handleAnswerChange(`${activity.id}-${idx}`, val)} />
                   ))}
@@ -143,13 +134,30 @@ export const LessonView: React.FC = () => {
             </div>
           </div>
 
-          <button onClick={handleAICorrection} className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg">
-            <Sparkles size={20} /> Analisar Respostas com IA
+          <button 
+            onClick={handleAICorrection} 
+            className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg hover:shadow-indigo-200 transition-all hover:-translate-y-1 mb-4"
+          >
+            <Sparkles size={20} /> Analisar Respostas com IA (Opcional)
           </button>
+          
+          <p className="text-center text-xs text-slate-400">
+            Você pode revisar suas respostas com a IA antes de enviar definitivamente para o professor.
+          </p>
         </div>
       </div>
 
-      <SubmissionBar studentName={studentName} schoolClass={schoolClass} submissionDate={submissionDate} lessonTitle={foundLesson.title} submissionData={getSubmissionData()} aiData={aiData} theory={foundLesson.theory} />
+      {student && (
+        <SubmissionBar 
+          studentName={student.name} 
+          schoolClass={student.school_class} 
+          submissionDate={getTodayString()} 
+          lessonTitle={foundLesson.title} 
+          submissionData={getSubmissionData()} 
+          aiData={aiData} 
+          theory={foundLesson.theory} 
+        />
+      )}
     </div>
   );
 };

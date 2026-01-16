@@ -1,20 +1,39 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { curriculumData } from '../data';
-import { ChevronRight, GraduationCap, User, ExternalLink, BookOpen } from 'lucide-react';
+import { ChevronRight, GraduationCap, User, ExternalLink, BookOpen, Lock } from 'lucide-react';
 
 export const Home: React.FC = () => {
-  
+  const navigate = useNavigate();
+  const [student, setStudent] = useState<any>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('student');
+    if (!saved) {
+      navigate('/login');
+    } else {
+      setStudent(JSON.parse(saved));
+    }
+  }, [navigate]);
+
   // Imagens temáticas para cada série
   const gradeImages: Record<number, string> = {
-    1: "https://images.unsplash.com/photo-1544967082-d9d25d867d66?auto=format&fit=crop&w=800&q=80", // Grécia/Antiguidade
-    2: "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=800&q=80", // Justiça/Política/Livros
-    3: "https://images.unsplash.com/photo-1499728603963-bc0922fae09c?auto=format&fit=crop&w=800&q=80", // Contemporâneo/Humano
+    1: "https://images.unsplash.com/photo-1544967082-d9d25d867d66?auto=format&fit=crop&w=800&q=80",
+    2: "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=800&q=80",
+    3: "https://images.unsplash.com/photo-1499728603963-bc0922fae09c?auto=format&fit=crop&w=800&q=80",
   };
+
+  // Filtra o currículo baseado na série do estudante logado
+  const filteredCurriculum = curriculumData.filter(grade => 
+    student ? grade.id === Number(student.grade) : true
+  );
+
+  if (!student) return null;
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Hero Section com Imagem */}
+      {/* Hero Section */}
       <div className="relative bg-slate-900 text-white overflow-hidden">
         <div className="absolute inset-0">
           <img 
@@ -30,86 +49,65 @@ export const Home: React.FC = () => {
             <BookOpen className="w-8 h-8 text-tocantins-yellow" />
           </div>
           <h2 className="text-4xl md:text-5xl font-serif font-bold mb-6 text-white tracking-tight drop-shadow-lg">
-            Portal de Filosofia
+            Olá, {student.name.split(' ')[0]}!
           </h2>
           <div className="text-slate-200 text-lg md:text-xl max-w-3xl mx-auto space-y-4 leading-relaxed font-light">
             <p>
-              <span className="font-bold text-yellow-400">Atenção, estudante!</span> Selecione sua série abaixo para acessar conteúdos exclusivos, atividades e reflexões.
+              Você está acessando os conteúdos da <span className="font-bold text-yellow-400">{student.grade}ª Série - Turma {student.school_class}</span>.
             </p>
-            <p className="text-base opacity-90">
-              Lembre-se: O envio da atividade deve ocorrer no dia da aula. Identifique-se corretamente para garantir sua presença e nota.
+            <p className="text-sm opacity-80">
+              O acesso a outras séries foi restrito para garantir seu foco no cronograma letivo.
             </p>
           </div>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-12 max-w-5xl -mt-10 relative z-10">
-        {/* Seção Sobre o Professor - Versão Discreta */}
-        <div className="max-w-3xl mx-auto mb-12 bg-white/95 backdrop-blur shadow-xl rounded-xl p-6 text-slate-600 border border-slate-200">
-           <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2 uppercase text-xs tracking-wider border-b border-slate-100 pb-2">
-              <User className="w-4 h-4 text-tocantins-blue" />
-              Sobre o Professor
-            </h3>
-            <div className="space-y-2 leading-relaxed text-justify text-sm md:text-base">
-              <p>
-                Olá, me chamo <strong>Divino Ribeiro Viana</strong>, natural de Porto Nacional-TO.
-                Sou licenciado em Filosofia (UCB), bacharel em Teologia (FAJE), pós-graduado em Filosofia (UFT) e Educação (UCB), e mestre em Filosofia pela UFT.
-                Atualmente, sou professor na rede estadual de educação do Tocantins.
-              </p>
-            </div>
-            <div className="mt-4">
-              <a 
-                href="http://lattes.cnpq.br/7639474934278364" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex items-center text-tocantins-blue hover:text-blue-800 font-semibold text-sm transition-colors group"
-              >
-                <ExternalLink className="w-3 h-3 mr-1 group-hover:scale-110 transition-transform" />
-                Acessar Currículo Lattes
-              </a>
-            </div>
-        </div>
-
-        <div className="grid gap-8 md:grid-cols-3">
-          {curriculumData.map((grade) => (
+        <div className="grid gap-8 justify-center">
+          {filteredCurriculum.map((grade) => (
             <Link 
               key={grade.id} 
               to={`/grade/${grade.id}`}
-              className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col h-full transform hover:-translate-y-1"
+              className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col md:flex-row h-full max-w-2xl transform hover:-translate-y-1 border border-slate-200"
             >
-              {/* Imagem de Fundo do Card */}
-              <div className="h-32 overflow-hidden relative">
-                <div className={`absolute inset-0 ${grade.color} opacity-80 z-10 mix-blend-multiply transition-opacity group-hover:opacity-90`}></div>
+              <div className="h-48 md:h-auto md:w-64 overflow-hidden relative">
+                <div className={`absolute inset-0 ${grade.color} opacity-80 z-10 mix-blend-multiply`}></div>
                 <img 
                   src={gradeImages[grade.id]} 
                   alt={grade.title}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                 />
-                <div className="absolute bottom-0 left-0 p-4 z-20 flex items-end w-full">
-                   <div className="p-3 rounded-xl bg-white/20 backdrop-blur-md text-white border border-white/30 shadow-inner">
-                    <GraduationCap className="w-8 h-8" />
-                  </div>
+                <div className="absolute inset-0 flex items-center justify-center z-20">
+                    <GraduationCap className="w-12 h-12 text-white opacity-50" />
                 </div>
               </div>
 
-              <div className="p-6 flex flex-col flex-grow relative">
-                <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-2 group-hover:translate-x-0">
-                   <ChevronRight className="w-6 h-6 text-tocantins-blue" />
-                </div>
-                
-                <h3 className="text-2xl font-serif font-bold text-slate-800 mb-3 group-hover:text-tocantins-blue transition-colors">
+              <div className="p-8 flex flex-col flex-grow relative">
+                <h3 className="text-3xl font-serif font-bold text-slate-800 mb-4 group-hover:text-tocantins-blue transition-colors">
                   {grade.title}
                 </h3>
-                <p className="text-slate-600 text-sm leading-relaxed flex-grow">
+                <p className="text-slate-600 leading-relaxed mb-6">
                   {grade.description}
                 </p>
-                
-                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center text-sm font-semibold text-tocantins-blue">
-                  Acessar Aulas
+                <div className="mt-auto flex items-center text-sm font-bold text-tocantins-blue">
+                  Acessar Bimesteres e Aulas <ChevronRight className="w-4 h-4 ml-1" />
                 </div>
               </div>
             </Link>
           ))}
+        </div>
+
+        {/* Informações do Professor */}
+        <div className="max-w-2xl mx-auto mt-16 bg-white shadow-xl rounded-2xl p-8 text-slate-600 border border-slate-200">
+           <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 uppercase text-xs tracking-wider border-b border-slate-100 pb-2">
+              <User className="w-4 h-4 text-tocantins-blue" />
+              Docente Responsável
+            </h3>
+            <p className="text-sm md:text-base leading-relaxed text-justify mb-4">
+              <strong>Prof. Me. Divino Ribeiro Viana</strong>. Especialista em Filosofia e Mestre pela UFT.
+              Dúvidas sobre o conteúdo de sua série podem ser sanadas via aba de contato.
+            </p>
+            <a href="http://lattes.cnpq.br/7639474934278364" target="_blank" className="text-tocantins-blue hover:underline text-sm font-bold">Currículo Lattes</a>
         </div>
       </div>
     </div>

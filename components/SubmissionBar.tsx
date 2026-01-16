@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Send, Copy, CheckCircle, Settings, Mail, Sparkles, Loader2, Database } from 'lucide-react';
+import { Send, CheckCircle, Database, Loader2, AlertTriangle } from 'lucide-react';
 import { AIResponse, evaluateActivities } from '../services/aiService';
 import { supabase } from '../lib/supabase';
 
@@ -16,7 +16,6 @@ interface Props {
   submissionDate: string;
   lessonTitle: string;
   submissionData: SubmissionItem[];
-  teacherEmail?: string;
   aiData?: AIResponse | null;
   theory: string;
 }
@@ -27,51 +26,43 @@ export const SubmissionBar: React.FC<Props> = ({
   submissionDate,
   lessonTitle, 
   submissionData,
-  teacherEmail = "divino.viana@professor.to.gov.br",
   aiData,
   theory
 }) => {
-  const DEFAULT_PHONE = "63981127876";
-
-  const [teacherPhone, setTeacherPhone] = useState('');
-  const [showPhoneInput, setShowPhoneInput] = useState(false);
-  const [copyFeedback, setCopyFeedback] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [dbStatus, setDbStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
-  useEffect(() => {
-    try {
-      const savedPhone = localStorage.getItem('teacherPhone');
-      if (savedPhone) {
-        setTeacherPhone(savedPhone);
-      } else {
-        setTeacherPhone(DEFAULT_PHONE);
-      }
-    } catch (error) {
-      setTeacherPhone(DEFAULT_PHONE);
-    }
-  }, []);
-
-  const savePhone = (phone: string) => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    setTeacherPhone(cleanPhone);
-    localStorage.setItem('teacherPhone', cleanPhone);
-  };
-
   const validate = () => {
     if (!studentName.trim() || !schoolClass.trim() || !submissionDate.trim()) {
-      alert("Por favor, preencha nome, turma e data.");
+      alert("Erro: Informações do aluno não encontradas. Tente fazer login novamente.");
       return false;
     }
     if (submissionData.length === 0) {
-      alert("Responda pelo menos uma questão.");
+      alert("Por favor, responda pelo menos uma questão antes de enviar.");
       return false;
     }
     return true;
   };
 
-  const saveToSupabase = async (currentAIData: AIResponse | null) => {
+  const handleInternalSend = async () => {
+    if (!validate()) return;
+    
+    setIsGenerating(true);
     setDbStatus('saving');
+    
+    let currentAIData = aiData;
+    const apiKey = process.env.API_KEY;
+
+    // Se o aluno ainda não gerou feedback da IA, geramos automaticamente no envio para o professor ter a nota
+    if (!currentAIData && apiKey && apiKey.length > 5) {
+      try {
+        const q = submissionData.map(item => ({ question: item.question, answer: item.answer }));
+        currentAIData = await evaluateActivities(lessonTitle, theory, q);
+      } catch (e) { 
+        console.error("Erro na pré-avaliação da IA:", e); 
+      }
+    }
+
     try {
       const { error } = await supabase
         .from('submissions')
@@ -88,86 +79,63 @@ export const SubmissionBar: React.FC<Props> = ({
         ]);
 
       if (error) throw error;
+      
       setDbStatus('saved');
-      return true;
+      alert("Atividade enviada com sucesso! O professor já pode visualizá-la no painel dele.");
     } catch (error) {
       console.error("Erro ao salvar no banco:", error);
       setDbStatus('error');
-      return false;
+      alert("Ocorreu um erro ao enviar para o sistema. Verifique sua conexão.");
+    } finally {
+      setIsGenerating(false);
     }
-  };
-
-  const formatMessage = (dataToUse: AIResponse | null | undefined) => {
-    let msg = `*ATIVIDADE DE FILOSOFIA*\n`;
-    msg += `📚 *Aula:* ${lessonTitle}\n👤 *Aluno:* ${studentName}\n🏫 *Turma:* ${schoolClass}\n📅 *Data:* ${submissionDate}\n`;
-    if (dataToUse) msg += `👨‍🏫 *Nota IA:* ${(dataToUse.corrections.reduce((a,c)=>a+c.score,0)/dataToUse.corrections.length).toFixed(1)}/10\n`;
-    msg += `--------------------------------\n\n`;
-    submissionData.forEach((item, i) => {
-      msg += `📝 *Q${i+1}* - _${item.question}_\n*R:* ${item.answer}\n`;
-      if (dataToUse?.corrections[i]) msg += `✍️ *Feedback:* ${dataToUse.corrections[i].feedback}\n`;
-      msg += `\n`;
-    });
-    return msg;
-  };
-
-  const handleWhatsApp = async () => {
-    if (!validate()) return;
-    
-    setIsGenerating(true);
-    let currentAIData = aiData;
-    const apiKey = process.env.API_KEY;
-
-    if (!currentAIData && apiKey && apiKey.length > 5) {
-      try {
-        const q = submissionData.map(item => ({ question: item.question, answer: item.answer }));
-        currentAIData = await evaluateActivities(lessonTitle, theory, q);
-      } catch (e) { console.error(e); }
-    }
-
-    // Salva no banco de dados do professor antes de abrir o WhatsApp
-    await saveToSupabase(currentAIData);
-
-    const text = formatMessage(currentAIData);
-    const encodedText = encodeURIComponent(text);
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const baseUrl = isMobile ? 'https://api.whatsapp.com/send' : 'https://web.whatsapp.com/send';
-    
-    setIsGenerating(false);
-    window.open(`${baseUrl}?phone=55${teacherPhone}&text=${encodedText}`, '_blank');
   };
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-50">
       <div className="container mx-auto max-w-3xl">
-        {showPhoneInput && (
-          <div className="mb-4 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <label className="block text-sm font-bold text-yellow-800 mb-2">WhatsApp do Professor:</label>
-            <div className="flex gap-2">
-              <input type="tel" className="flex-1 p-2 border rounded-md" value={teacherPhone} onChange={(e) => savePhone(e.target.value)} />
-              <button onClick={() => setShowPhoneInput(false)} className="bg-yellow-600 text-white px-4 py-2 rounded-md font-bold">Salvar</button>
-            </div>
+        <div className="flex items-center justify-between gap-4">
+          
+          <div className="flex-1 flex items-center gap-3">
+             <div className={`p-2 rounded-lg ${dbStatus === 'saved' ? 'bg-green-100' : 'bg-slate-100'}`}>
+                {dbStatus === 'saved' ? (
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                ) : dbStatus === 'error' ? (
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                ) : (
+                  <Database className="w-5 h-5 text-slate-400" />
+                )}
+             </div>
+             <div>
+                <p className="text-[10px] uppercase font-bold text-slate-400 leading-none mb-1">Status do Envio</p>
+                <p className={`text-sm font-bold ${dbStatus === 'saved' ? 'text-green-600' : 'text-slate-600'}`}>
+                  {dbStatus === 'saving' ? 'Enviando para o Professor...' : 
+                   dbStatus === 'saved' ? 'Entregue ao Sistema' : 
+                   dbStatus === 'error' ? 'Falha no Envio' : 'Pronto para Enviar'}
+                </p>
+             </div>
           </div>
-        )}
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-          <div className="flex w-full space-x-2">
-            <div className={`flex items-center px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-colors ${
-              dbStatus === 'saved' ? 'bg-green-100 text-green-600' : 
-              dbStatus === 'error' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-400'
-            }`}>
-              <Database className="w-3 h-3 mr-1" />
-              {dbStatus === 'saving' ? 'Salvando...' : dbStatus === 'saved' ? 'Registrado' : 'Offline'}
-            </div>
-
-            <button onClick={handleWhatsApp} disabled={isGenerating} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
-              {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-              <span>{isGenerating ? 'Processando...' : 'Enviar Atividade'}</span>
-            </button>
-
-            <button onClick={() => setShowPhoneInput(!showPhoneInput)} className="p-3 text-slate-400 hover:bg-slate-100 rounded-xl">
-              <Settings className="w-5 h-5" />
-            </button>
-          </div>
+          <button 
+            onClick={handleInternalSend} 
+            disabled={isGenerating || dbStatus === 'saved'} 
+            className={`flex-grow md:flex-initial min-w-[200px] text-white font-bold py-4 px-8 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-95 disabled:opacity-50 ${
+              dbStatus === 'saved' ? 'bg-slate-400 cursor-not-allowed' : 'bg-tocantins-blue hover:bg-blue-800'
+            }`}
+          >
+            {isGenerating ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : dbStatus === 'saved' ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <Send className="w-5 h-5" />
+            )}
+            <span>
+              {isGenerating ? 'Enviando...' : 
+               dbStatus === 'saved' ? 'Atividade Enviada' : 'Finalizar e Enviar Atividade'}
+            </span>
+          </button>
+          
         </div>
       </div>
     </div>
